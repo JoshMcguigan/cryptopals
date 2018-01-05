@@ -136,9 +136,35 @@ pub fn hex_single_char_xor_to_ascii(hex_string: &str, char: &u8) -> String {
     bytes_to_ascii_string(result_bytes)
 }
 
+pub fn repeating_key_xor_encrypt(message: &str, key: &str) -> String {
+
+    let message_bytes = message.as_bytes();
+    let key_bytes = key.as_bytes();
+
+    let mut result_bytes : Vec<u8> = Vec::new();
+
+    for (index, message_byte) in message_bytes.iter().enumerate() {
+        let key_index = index % key_bytes.len();
+        let key_byte : &u8 = key_bytes.get(key_index).unwrap();
+        result_bytes.push(message_byte ^ key_byte);
+    }
+
+    bytes_to_hex_string(result_bytes)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_repeating_key_xor_encrypt() {
+        let message = "Burning 'em, if you ain't quick and nimble";
+        let key = "ICE";
+
+        let expected_encrypted_message = "0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272a282b2f20";
+
+        assert_eq!(expected_encrypted_message, repeating_key_xor_encrypt(message, key))
+    }
 
     #[test]
     fn test_hex_to_base64() {

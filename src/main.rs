@@ -1,12 +1,12 @@
 mod utils;
-use utils::*;
 
-use std::io::{BufReader,BufRead};
-use std::fs::File;
 
 #[cfg(test)]
 mod set_1 {
-    use super::*;
+    use utils::*;
+
+    use std::io::{BufReader,BufRead};
+    use std::fs::File;
 
     #[test]
     fn challenge_1() {
@@ -56,5 +56,15 @@ mod set_1 {
 
         let expected_message = String::from("Now that the party is jumping\n");
         assert_eq!(expected_message, decoded_message.decoded_message)
+    }
+
+    #[test]
+    fn challenge_5() {
+        let message = "Burning 'em, if you ain't quick and nimbleI go crazy when I hear a cymbal";
+        let key = "ICE";
+
+        let expected_encrypted_message = "0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272a282b2f20430a652e2c652a3124333a653e2b2027630c692b20283165286326302e27282f";
+
+        assert_eq!(expected_encrypted_message, repeating_key_xor_encrypt(message, key));
     }
 }
