@@ -1,252 +1,327 @@
-extern crate base64;
+pub mod into_bytes;
+pub mod from_bytes;
+pub mod xor;
+pub mod plain_text_analysis;
+pub mod decrypt;
 
-use std::u8;
-use self::base64::{encode};
-
-fn char_to_score(char: char) -> f32 {
-    //https://en.wikipedia.org/wiki/Letter_frequency
-    match char {
-        'a' => 8.167,
-        'b' => 1.492,
-        'c' => 2.782,
-        'd' => 4.253,
-        'e' => 12.702,
-        'f' => 2.228,
-        'g' => 2.015,
-        'h' => 6.094,
-        'i' => 6.966,
-        'j' => 0.153,
-        'k' => 0.772,
-        'l' => 4.025,
-        'm' => 2.406,
-        'n' => 6.749,
-        'o' => 7.507,
-        'p' => 1.929,
-        'q' => 0.095,
-        'r' => 5.987,
-        's' => 6.327,
-        't' => 9.056,
-        'u' => 2.758,
-        'v' => 0.978,
-        'w' => 2.360,
-        'x' => 0.150,
-        'y' => 1.974,
-        'z' => 0.074,
-        ' ' => 0.000,
-        '.' => 0.000,
-        ',' => 0.000,
-        ';' => 0.000,
-        ':' => 0.000,
-        '\'' => 0.000,
-        _   => -10.000
-    }
-}
-
-pub struct SingleCharXorDecryptedMessage {
-    pub decoded_message: String,
-    pub key: u8,
-    pub score: f32
-}
-
-pub fn get_most_likely_single_char_xor_result(hex_input: &str) -> SingleCharXorDecryptedMessage {
-
-    let mut result = SingleCharXorDecryptedMessage {
-        score: 0f32,
-        key: 0u8,
-        decoded_message: String::from("")
-    };
-
-    for char_input in 0u8..127u8 {
-
-        let result_string = hex_single_char_xor_to_ascii(hex_input,&char_input);
-
-        let score = get_score_for_string(&result_string);
-
-        if score > result.score {
-            result.score = score;
-            result.key = char_input;
-            result.decoded_message = result_string;
-        }
-    }
-
-    result
-}
-
-pub fn get_score_for_string(string: &str) -> f32 {
-    let lower_case_string = string.to_lowercase();
-    let mut score : f32 = 0f32;
-    for char in lower_case_string.chars() {
-        score += char_to_score(char);
-    }
-    score / (string.len() as f32)
-}
-
-
-pub fn hex_to_bytes(hex: &str) -> Vec<u8> {
-    let mut bytes = Vec::new();
-    for i in 0..(hex.len()/2) {
-        let result = u8::from_str_radix(&hex[2*i .. 2*i+2], 16);
-        bytes.push(result.unwrap());
-    };
-    bytes
-}
-
-pub fn hex_to_base64(hex: &str) -> String {
-    encode(&hex_to_bytes(hex))
-}
-
-pub fn hex_fixed_xor(in1: &str, in2: &str) -> String {
-
-    let bytes1 = hex_to_bytes(in1);
-    let bytes2 = hex_to_bytes(in2);
-
-    let mut result_bytes : Vec<u8> = Vec::new();
-
-    for (index, byte) in bytes1.iter().enumerate() {
-        let byte2 : &u8 = bytes2.get(index).unwrap();
-        result_bytes.push(byte ^ byte2);
-    }
-
-    bytes_to_hex_string(result_bytes)
-}
-
-pub fn bytes_to_hex_string(bytes: Vec<u8>) -> String {
-    let strings: Vec<String> = bytes.iter()
-        .map(|b| format!("{:02X}", b))
-        .collect();
-    strings.join("").to_lowercase()
-}
-
-pub fn bytes_to_ascii_string(bytes: Vec<u8>) -> String {
-    match String::from_utf8(bytes) {
-        Err(_) => String::from(""),
-        Ok(string) => string
-    }
-}
-
-pub fn hex_single_char_xor_to_ascii(hex_string: &str, char: &u8) -> String {
-    let bytes = hex_to_bytes(hex_string);
-
-    let mut result_bytes : Vec<u8> = Vec::new();
-
-    for byte in bytes {
-        result_bytes.push(byte ^ char);
-    }
-
-    bytes_to_ascii_string(result_bytes)
-}
-
-pub fn repeating_key_xor_encrypt(message: &str, key: &str) -> String {
-
-    let message_bytes = message.as_bytes();
-    let key_bytes = key.as_bytes();
-
-    let mut result_bytes : Vec<u8> = Vec::new();
-
-    for (index, message_byte) in message_bytes.iter().enumerate() {
-        let key_index = index % key_bytes.len();
-        let key_byte : &u8 = key_bytes.get(key_index).unwrap();
-        result_bytes.push(message_byte ^ key_byte);
-    }
-
-    bytes_to_hex_string(result_bytes)
-}
-
-fn string_to_bits(string: &str) -> Vec<bool> {
-    let mut result = Vec::new();
-
-    for byte in string.as_bytes() {
-        for i in 0..7 {
-            result.push(byte & (1<<i) != 0)
-        }
-    }
-
-    result
-}
-
-fn hamming_distance(string1: &str, string2: &str) -> u32 {
-    let vec1 = string_to_bits(string1);
-    let vec2 = string_to_bits(string2);
-    vec1.iter().zip(vec2.iter()).filter(|&(a, b)| a != b).count() as u32
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_hamming_distance() {
-        let string1 = "this is a test";
-        let string2 = "wokka wokka!!!";
-
-        let expected_hamming_distance : u32 = 37;
-
-        assert_eq!(expected_hamming_distance, hamming_distance(string1, string2))
-    }
-
-    #[test]
-    fn test_repeating_key_xor_encrypt() {
-        let message = "Burning 'em, if you ain't quick and nimble";
-        let key = "ICE";
-
-        let expected_encrypted_message = "0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272a282b2f20";
-
-        assert_eq!(expected_encrypted_message, repeating_key_xor_encrypt(message, key))
-    }
-
-    #[test]
-    fn test_hex_to_base64() {
-        let hex = "49276d206b696c6c696";
-        let expected_base64 = "SSdtIGtpbGxp";
-
-        assert_eq!(expected_base64, hex_to_base64(hex));
-    }
-
-    #[test]
-    fn test_hex_fixed_xor() {
-        let in1 = "1c0111001f";
-        let in2 = "6869742074";
-        let expected_result = "746865206b";
-
-        assert_eq!(expected_result, hex_fixed_xor(in1, in2));
-    }
-
-    #[test]
-    fn test_hex_single_char_xor_to_ascii() {
-
-        let hex_input = "1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736";
-        let char = 88u8;
-
-        let expected_string = "Cooking MC's like a pound of bacon";
-
-        assert_eq!(expected_string, hex_single_char_xor_to_ascii(hex_input, &char));
-
-    }
-
-    #[test]
-    fn test_char_to_score() {
-        let char_a = 'a';
-        let char_z = 'z';
-
-        assert!(char_to_score(char_a) > char_to_score(char_z));
-    }
-
-    #[test]
-    fn test_get_score_for_string() {
-        let test_string = "josh";
-        let expected_score : f32 = 5.02025;
-
-        assert_eq!(expected_score, get_score_for_string(test_string));
-    }
-
-    #[test]
-    fn test_get_most_likely_single_char_xor_result() {
-
-        let hex_input = "1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736";
-
-        let result = get_most_likely_single_char_xor_result(hex_input);
-
-        let expected_max_score_char :u8 = 88;
-        assert_eq!(expected_max_score_char, result.key);
-    }
-}
+//extern crate base64;
+//
+//use std::u8;
+//use self::base64::{encode, decode_config, MIME};
+//
+//fn char_to_score(char: char) -> f32 {
+//    //https://en.wikipedia.org/wiki/Letter_frequency
+//    match char {
+//        'a' => 8.167,
+//        'b' => 1.492,
+//        'c' => 2.782,
+//        'd' => 4.253,
+//        'e' => 12.702,
+//        'f' => 2.228,
+//        'g' => 2.015,
+//        'h' => 6.094,
+//        'i' => 6.966,
+//        'j' => 0.153,
+//        'k' => 0.772,
+//        'l' => 4.025,
+//        'm' => 2.406,
+//        'n' => 6.749,
+//        'o' => 7.507,
+//        'p' => 1.929,
+//        'q' => 0.095,
+//        'r' => 5.987,
+//        's' => 6.327,
+//        't' => 9.056,
+//        'u' => 2.758,
+//        'v' => 0.978,
+//        'w' => 2.360,
+//        'x' => 0.150,
+//        'y' => 1.974,
+//        'z' => 0.074,
+//        ' ' => 0.000,
+//        '.' => 0.000,
+//        ',' => 0.000,
+//        ';' => 0.000,
+//        ':' => 0.000,
+//        '\'' => 0.000,
+//        _   => -10.000
+//    }
+//}
+//
+//pub struct SingleCharXorDecryptedMessage {
+//    pub decoded_message: String,
+//    pub key: u8,
+//    pub score: f32
+//}
+//
+//pub fn get_most_likely_single_char_xor_result(hex_input: &str) -> SingleCharXorDecryptedMessage {
+//
+//    let mut result = SingleCharXorDecryptedMessage {
+//        score: 0f32,
+//        key: 0u8,
+//        decoded_message: String::from("")
+//    };
+//
+//    for char_input in 0u8..127u8 {
+//
+//        let result_string = hex_single_char_xor_to_ascii(hex_input,&char_input);
+//
+//        let score = get_score_for_string(&result_string);
+//
+//        if score > result.score {
+//            result.score = score;
+//            result.key = char_input;
+//            result.decoded_message = result_string;
+//        }
+//    }
+//
+//    result
+//}
+//
+//pub fn get_most_likely_single_char_xor_result_from_bytes(input: &[u8]) -> SingleCharXorDecryptedMessage {
+//
+//    let mut result = SingleCharXorDecryptedMessage {
+//        score: 0f32,
+//        key: 0u8,
+//        decoded_message: String::from("")
+//    };
+//
+//    for char_input in 0u8..127u8 {
+//
+//        let result_string = bytes_single_char_xor_to_ascii(input,&char_input);
+//
+//        let score = get_score_for_string(&result_string);
+//
+//        println!("character: {} - score: {}", char_input as char, score);
+//
+//        if score > result.score {
+//            result.score = score;
+//            result.key = char_input;
+//            result.decoded_message = result_string;
+//        }
+//    }
+//
+//    result
+//}
+//
+//pub fn get_score_for_string(string: &str) -> f32 {
+//    let lower_case_string = string.to_lowercase();
+//    let mut score : f32 = 0f32;
+//    for char in lower_case_string.chars() {
+//        score += char_to_score(char);
+//    }
+//    score / (string.len() as f32)
+//}
+//
+//
+//pub fn hex_to_bytes(hex: &str) -> Vec<u8> {
+//    let mut bytes = Vec::new();
+//    for i in 0..(hex.len()/2) {
+//        let result = u8::from_str_radix(&hex[2*i .. 2*i+2], 16);
+//        bytes.push(result.unwrap());
+//    };
+//    bytes
+//}
+//
+//pub fn hex_to_base64(hex: &str) -> String {
+//    encode(&hex_to_bytes(hex))
+//}
+//
+//pub fn hex_fixed_xor(in1: &str, in2: &str) -> String {
+//
+//    let bytes1 = hex_to_bytes(in1);
+//    let bytes2 = hex_to_bytes(in2);
+//
+//    let mut result_bytes : Vec<u8> = Vec::new();
+//
+//    for (index, byte) in bytes1.iter().enumerate() {
+//        let byte2 : &u8 = bytes2.get(index).unwrap();
+//        result_bytes.push(byte ^ byte2);
+//    }
+//
+//    bytes_to_hex_string(result_bytes)
+//}
+//
+//pub fn bytes_to_hex_string(bytes: Vec<u8>) -> String {
+//    let strings: Vec<String> = bytes.iter()
+//        .map(|b| format!("{:02X}", b))
+//        .collect();
+//    strings.join("").to_lowercase()
+//}
+//
+//pub fn bytes_to_ascii_string(bytes: Vec<u8>) -> String {
+//    match String::from_utf8(bytes) {
+//        Err(_) => String::from(""),
+//        Ok(string) => string
+//    }
+//}
+//
+//pub fn hex_single_char_xor_to_ascii(hex_string: &str, char: &u8) -> String {
+//    let bytes = hex_to_bytes(hex_string);
+//
+//    let mut result_bytes : Vec<u8> = Vec::new();
+//
+//    for byte in bytes {
+//        result_bytes.push(byte ^ char);
+//    }
+//
+//    bytes_to_ascii_string(result_bytes)
+//}
+//
+//fn bytes_single_char_xor_to_ascii(bytes: &[u8], char: &u8) -> String {
+//    let mut result_bytes : Vec<u8> = Vec::new();
+//
+//    for byte in bytes {
+//        result_bytes.push(byte ^ char);
+//    }
+//
+//    bytes_to_ascii_string(result_bytes)
+//}
+//
+//pub fn repeating_key_xor_encrypt(message: &str, key: &str) -> String {
+//
+//    let message_bytes = message.as_bytes();
+//    let key_bytes = key.as_bytes();
+//
+//    let mut result_bytes : Vec<u8> = Vec::new();
+//
+//    for (index, message_byte) in message_bytes.iter().enumerate() {
+//        let key_index = index % key_bytes.len();
+//        let key_byte : &u8 = key_bytes.get(key_index).unwrap();
+//        result_bytes.push(message_byte ^ key_byte);
+//    }
+//
+//    bytes_to_hex_string(result_bytes)
+//}
+//
+//fn bytes_to_bits(bytes: &[u8]) -> Vec<bool> {
+//    let mut result = Vec::new();
+//
+//    for byte in bytes {
+//        for i in 0..7 {
+//            result.push(byte & (1<<i) != 0)
+//        }
+//    }
+//
+//    result
+//}
+//
+//fn distance_between_bits(bit_vector_1: Vec<bool>, bit_vector_2: Vec<bool>) -> u32 {
+//    bit_vector_1.iter().zip(bit_vector_2.iter()).filter(|&(a, b)| a != b).count() as u32
+//}
+//
+//fn hamming_distance(string1: &str, string2: &str) -> u32 {
+//    let vec1 = bytes_to_bits(string1.as_bytes());
+//    let vec2 = bytes_to_bits(string2.as_bytes());
+//    distance_between_bits(vec1, vec2)
+//}
+//
+//fn break_multi_key_xor(encrypted_bytes: &[u8]) -> String {
+//    let key_size = 3usize;
+//    let mut first_bytes: Vec<u8> = Vec::new();
+//
+//    for i in (0..encrypted_bytes.len()).filter(|x| (x % key_size == 0)) {
+//        first_bytes.push(encrypted_bytes[i]);
+//    }
+//    let result = get_most_likely_single_char_xor_result_from_bytes(first_bytes.as_ref());
+//    (result.key as char).to_string()
+//}
+//
+//
+//#[cfg(test)]
+//mod tests {
+//    use std::fs::File;
+//    use std::io::Read;
+//    use std::str;
+//    use super::*;
+//
+//    #[test]
+//    fn test_break_multi_key_xor(){
+//
+//        let base64_after_encrypting_messaage = "MGIzNjM3MjcyYTJiMmU2MzYyMmMyZTY5NjkyYTIzNjkzYTJhM2M2MzI0MjAyZDYyM2Q2MzM0M2MyYTI2MjI2MzI0MjcyNzY1MjcyYTI4MmIyZjIwNDMwYTY1MmUyYzY1MmEzMTI0MzMzYTY1M2UyYjIwMjc2MzBjNjkyYjIwMjgzMTY1Mjg2MzI2MzAyZTI3MjgyZg==";
+//
+//        let byte_vec = decode_config(&base64_after_encrypting_messaage, MIME).unwrap();
+//        let bytes = byte_vec.as_slice();
+//
+//        let expected_message = String::from("Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal");
+//
+////        assert_eq!(expected_message, break_multi_key_xor(bytes));
+//        assert_eq!("I", break_multi_key_xor(bytes));
+//    }
+//
+//    #[test]
+//    fn test_hamming_distance() {
+//        let string1 = "this is a test";
+//        let string2 = "wokka wokka!!!";
+//
+//        let expected_hamming_distance : u32 = 37;
+//
+//        assert_eq!(expected_hamming_distance, hamming_distance(string1, string2))
+//    }
+//
+//    #[test]
+//    fn test_repeating_key_xor_encrypt() {
+//        let message = "Burning 'em, if you ain't quick and nimble";
+//        let key = "ICE";
+//
+//        let expected_encrypted_message = "0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272a282b2f20";
+//
+//        assert_eq!(expected_encrypted_message, repeating_key_xor_encrypt(message, key))
+//    }
+//
+//    #[test]
+//    fn test_hex_to_base64() {
+//        let hex = "49276d206b696c6c696";
+//        let expected_base64 = "SSdtIGtpbGxp";
+//
+//        assert_eq!(expected_base64, hex_to_base64(hex));
+//    }
+//
+//    #[test]
+//    fn test_hex_fixed_xor() {
+//        let in1 = "1c0111001f";
+//        let in2 = "6869742074";
+//        let expected_result = "746865206b";
+//
+//        assert_eq!(expected_result, hex_fixed_xor(in1, in2));
+//    }
+//
+//    #[test]
+//    fn test_hex_single_char_xor_to_ascii() {
+//
+//        let hex_input = "1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736";
+//        let char = 88u8;
+//
+//        let expected_string = "Cooking MC's like a pound of bacon";
+//
+//        assert_eq!(expected_string, hex_single_char_xor_to_ascii(hex_input, &char));
+//
+//    }
+//
+//    #[test]
+//    fn test_char_to_score() {
+//        let char_a = 'a';
+//        let char_z = 'z';
+//
+//        assert!(char_to_score(char_a) > char_to_score(char_z));
+//    }
+//
+//    #[test]
+//    fn test_get_score_for_string() {
+//        let test_string = "josh";
+//        let expected_score : f32 = 5.02025;
+//
+//        assert_eq!(expected_score, get_score_for_string(test_string));
+//    }
+//
+//    #[test]
+//    fn test_get_most_likely_single_char_xor_result() {
+//
+//        let hex_input = "1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736";
+//
+//        let result = get_most_likely_single_char_xor_result(hex_input);
+//
+//        let expected_max_score_char :u8 = 88;
+//        assert_eq!(expected_max_score_char, result.key);
+//    }
+//}
