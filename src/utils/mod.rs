@@ -152,9 +152,37 @@ pub fn repeating_key_xor_encrypt(message: &str, key: &str) -> String {
     bytes_to_hex_string(result_bytes)
 }
 
+fn string_to_bits(string: &str) -> Vec<bool> {
+    let mut result = Vec::new();
+
+    for byte in string.as_bytes() {
+        for i in 0..7 {
+            result.push(byte & (1<<i) != 0)
+        }
+    }
+
+    result
+}
+
+fn hamming_distance(string1: &str, string2: &str) -> u32 {
+    let vec1 = string_to_bits(string1);
+    let vec2 = string_to_bits(string2);
+    vec1.iter().zip(vec2.iter()).filter(|&(a, b)| a != b).count() as u32
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_hamming_distance() {
+        let string1 = "this is a test";
+        let string2 = "wokka wokka!!!";
+
+        let expected_hamming_distance : u32 = 37;
+
+        assert_eq!(expected_hamming_distance, hamming_distance(string1, string2))
+    }
 
     #[test]
     fn test_repeating_key_xor_encrypt() {
