@@ -1,3 +1,6 @@
+use super::*;
+extern crate base64;
+
 pub fn from_hex(input: &str) -> Vec<u8> {
     let mut bytes = Vec::new();
     for i in 0..(input.len()/2) {
@@ -13,6 +16,10 @@ pub fn from_utf8(input: &str) -> Vec<u8> {
         bytes.push(byte.clone());
     };
     bytes
+}
+
+pub fn from_base64(input: &str) -> Vec<u8> {
+    base64::decode_config(input, base64::MIME).unwrap()
 }
 
 #[cfg(test)]
@@ -32,4 +39,19 @@ mod tests {
 
         assert_eq!(expected, from_utf8("A"));
     }
+
+    #[test]
+    fn test_from_base64() {
+        let expected: Vec<u8> = vec![65, 66, 67];
+
+        assert_eq!(expected, from_base64("QUJD"));
+    }
+
+    #[test]
+    fn test_from_base64_and_ignores_whitespace() {
+        let expected: Vec<u8> = vec![65, 66, 67];
+
+        assert_eq!(expected, from_base64("QU\nJD"));
+    }
+
 }
