@@ -42,11 +42,7 @@ mod set_1 {
 
     #[test]
     fn challenge_4() {
-        let mut decrypted_message = decrypt::DecryptedMessage {
-            decrypted_message: String::new(),
-            key: Vec::new(),
-            score: -9999f32,
-        };
+        let mut decrypted_message = decrypt::DecryptedMessage::new();
 
         let file = File::open("resources/set_1/challenge_4.txt").unwrap();
         for line in BufReader::new(file).lines() {
