@@ -1,4 +1,3 @@
-use super::*;
 extern crate base64;
 
 pub fn from_hex(input: &str) -> Vec<u8> {
