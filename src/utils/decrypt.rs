@@ -18,13 +18,19 @@ pub fn single_byte_xor(input: Vec<u8>) -> DecryptedMessage {
         let decrypted_bytes = xor::repeating_key_xor(input.clone(), vec![key]);
         let decrypted_string = from_bytes::into_utf8(decrypted_bytes);
 
-        let score = plain_text_analysis::get_score(decrypted_string.as_ref());
+        match decrypted_string {
+            Err(_err) => {},
+            Ok(decrypted_string) => {
+                let score = plain_text_analysis::get_score(decrypted_string.as_ref());
 
-        if score > result.score {
-            result.score = score;
-            result.key = vec![key];
-            result.decrypted_message = decrypted_string;
+                if score > result.score {
+                    result.score = score;
+                    result.key = vec![key];
+                    result.decrypted_message = decrypted_string;
+                }
+            }
         }
+
     }
 
     result

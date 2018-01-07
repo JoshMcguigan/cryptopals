@@ -3,6 +3,9 @@ mod utils;
 #[cfg(test)]
 mod set_1 {
     use utils::*;
+    use std::fs::File;
+    use std::io::BufReader;
+    use std::io::BufRead;
 
     #[test]
     fn challenge_1() {
@@ -36,29 +39,29 @@ mod set_1 {
 
         assert_eq!(expected_message, decrypt::single_byte_xor(input_bytes).decrypted_message);
     }
-//
-//    #[test]
-//    fn challenge_4() {
-//
-//        let mut decoded_message = SingleCharXorDecryptedMessage {
-//            decoded_message: String::from(""),
-//            key: 0,
-//            score: -9999f32,
-//        };
-//
-//        let file = File::open("resources/set_1_challenge_4.txt").unwrap();
-//        for line in BufReader::new(file).lines() {
-//            let line_string = line.unwrap();
-//            let hex_input : &str = line_string.as_ref();
-//            let result = get_most_likely_single_char_xor_result(hex_input);
-//            if result.score > decoded_message.score {
-//                decoded_message = result;
-//            }
-//        }
-//
-//        let expected_message = String::from("Now that the party is jumping\n");
-//        assert_eq!(expected_message, decoded_message.decoded_message)
-//    }
+
+    #[test]
+    fn challenge_4() {
+        let mut decrypted_message = decrypt::DecryptedMessage {
+            decrypted_message: String::new(),
+            key: Vec::new(),
+            score: -9999f32,
+        };
+
+        let file = File::open("resources/set_1/challenge_4.txt").unwrap();
+        for line in BufReader::new(file).lines() {
+            let line_string = line.unwrap();
+            let line_hex = line_string.as_ref();
+            let line_bytes = into_bytes::from_hex(line_hex);
+            let result = decrypt::single_byte_xor(line_bytes);
+            if result.score > decrypted_message.score {
+                decrypted_message = result;
+            }
+        }
+
+        let expected_message = String::from("Now that the party is jumping\n");
+        assert_eq!(expected_message, decrypted_message.decrypted_message)
+    }
 //
 //    #[test]
 //    fn challenge_5() {
