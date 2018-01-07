@@ -4,7 +4,6 @@ use super::*;
 use self::itertools::Itertools;
 
 pub struct DecryptedMessage {
-    pub decrypted_message: String,
     pub decrypted_bytes: Vec<u8>,
     pub key: Vec<u8>,
     pub score: f32
@@ -15,7 +14,6 @@ impl DecryptedMessage {
         DecryptedMessage {
             score: -9999f32,
             key: Vec::new(),
-            decrypted_message: String::new(),
             decrypted_bytes: Vec::new()
         }
     }
@@ -27,20 +25,13 @@ pub fn single_byte_xor(input: Vec<u8>) -> DecryptedMessage {
 
     for key in 0u8..127u8 {
         let decrypted_bytes = encrypt::repeating_key_xor(input.clone(), vec![key]);
-        let decrypted_string = from_bytes::into_utf8(decrypted_bytes.clone());
 
-        match decrypted_string {
-            Err(_err) => {},
-            Ok(decrypted_string) => {
-                let score = plain_text_analysis::get_score(decrypted_string.as_ref());
+        let score = plain_text_analysis::get_score_from_bytes(&decrypted_bytes);
 
-                if score > result.score {
-                    result.score = score;
-                    result.key = vec![key];
-                    result.decrypted_message = decrypted_string;
-                    result.decrypted_bytes = decrypted_bytes;
-                }
-            }
+        if score > result.score {
+            result.score = score;
+            result.key = vec![key];
+            result.decrypted_bytes = decrypted_bytes;
         }
 
     }
@@ -81,9 +72,6 @@ fn combine_decrypted_messages_from_multi_byte_xor(decrypted_messages: Vec<Decryp
         }
     }
 
-    // Create UTF-8 message from bytes
-    result.decrypted_message = from_bytes::into_utf8(result.decrypted_bytes.clone()).unwrap();
-
     // Calculate average score
     let mut score_sum = 0f32;
     for i in 0..decrypted_messages.len(){
@@ -110,9 +98,9 @@ mod tests {
         let hex_input = "1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736";
         let input_bytes = into_bytes::from_hex(hex_input);
 
-        let expected_message = "Cooking MC\'s like a pound of bacon";
+        let expected_message = String::from("Cooking MC\'s like a pound of bacon");
 
-        assert_eq!(expected_message, single_byte_xor(input_bytes).decrypted_message);
+        assert_eq!(expected_message, from_bytes::into_utf8(single_byte_xor(input_bytes).decrypted_bytes).unwrap());
     }
 
     #[test]
@@ -123,25 +111,22 @@ mod tests {
 
         let expected_decrypted_message = "Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal";
         multi_byte_xor_for_key_size(encrypted_message_bytes.clone(), key_size);
-        assert_eq!(expected_decrypted_message, multi_byte_xor_for_key_size(encrypted_message_bytes, key_size).decrypted_message);
+        assert_eq!(expected_decrypted_message, from_bytes::into_utf8(multi_byte_xor_for_key_size(encrypted_message_bytes, key_size).decrypted_bytes).unwrap());
     }
 
     #[test]
     fn test_combine_decrypted_messages_from_multi_byte_xor(){
         let decrypted_message_1 = DecryptedMessage{
-            decrypted_message: String::from("Jh"),
             decrypted_bytes: vec![74u8, 104],
             key: vec![1],
             score: 10f32,
         };
         let decrypted_message_2 = DecryptedMessage{
-            decrypted_message: String::from("ou"),
             decrypted_bytes: vec![111u8, 117],
             key: vec![2],
             score: 20f32,
         };
         let decrypted_message_3 = DecryptedMessage{
-            decrypted_message: String::from("sa"),
             decrypted_bytes: vec![115u8, 97],
             key: vec![3],
             score: 30f32,
@@ -153,7 +138,7 @@ mod tests {
         let expected_key = vec![1u8, 2, 3];
         let expected_score = 20f32;
 
-        assert_eq!(expected_message, result.decrypted_message);
+        assert_eq!(expected_message, from_bytes::into_utf8(result.decrypted_bytes).unwrap());
         assert_eq!(expected_score, result.score);
         assert_eq!(expected_key, result.key);
     }

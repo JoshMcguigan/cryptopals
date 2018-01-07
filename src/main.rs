@@ -35,9 +35,9 @@ mod set_1 {
         let hex_input = "1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736";
         let input_bytes = into_bytes::from_hex(hex_input);
 
-        let expected_message = "Cooking MC\'s like a pound of bacon";
+        let expected_message = String::from("Cooking MC\'s like a pound of bacon");
 
-        assert_eq!(expected_message, decrypt::single_byte_xor(input_bytes).decrypted_message);
+        assert_eq!(expected_message, from_bytes::into_utf8(decrypt::single_byte_xor(input_bytes).decrypted_bytes).unwrap());
     }
 
     #[test]
@@ -56,7 +56,7 @@ mod set_1 {
         }
 
         let expected_message = String::from("Now that the party is jumping\n");
-        assert_eq!(expected_message, decrypted_message.decrypted_message)
+        assert_eq!(expected_message, from_bytes::into_utf8(decrypted_message.decrypted_bytes).unwrap())
     }
 
     #[test]

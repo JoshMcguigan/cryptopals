@@ -16,7 +16,6 @@ pub fn get_score_from_bytes(input: &Vec<u8>) -> f32 {
     let mut score = 0f32;
     for byte in input {
         let char = (byte.clone() as char).to_ascii_lowercase();
-        println!("char: {}", char.clone());
         score += char_to_score(char);
     }
     score / (input.len() as f32)
