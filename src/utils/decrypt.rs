@@ -15,7 +15,7 @@ pub fn single_byte_xor(input: Vec<u8>) -> DecryptedMessage {
     };
 
     for key in 0u8..127u8 {
-        let decrypted_bytes = xor::repeating_key_xor(input.clone(), vec![key]);
+        let decrypted_bytes = encrypt::repeating_key_xor(input.clone(), vec![key]);
         let decrypted_string = from_bytes::into_utf8(decrypted_bytes);
 
         match decrypted_string {

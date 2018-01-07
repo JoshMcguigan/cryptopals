@@ -1,14 +1,14 @@
 pub fn repeating_key_xor(input: Vec<u8>, key: Vec<u8>) -> Vec<u8> {
 
-    let mut result_bytes : Vec<u8> = Vec::new();
+    let mut encrypted_bytes : Vec<u8> = Vec::new();
 
     for (index, input_byte) in input.iter().enumerate() {
         let key_index = index % key.len();
         let key_byte : &u8 = key.get(key_index).unwrap();
-        result_bytes.push(input_byte ^ key_byte);
+        encrypted_bytes.push(input_byte ^ key_byte);
     }
 
-    result_bytes
+    encrypted_bytes
 }
 
 #[cfg(test)]

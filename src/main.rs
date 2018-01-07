@@ -23,8 +23,8 @@ mod set_1 {
         let in2 = "686974207468652062756c6c277320657965";
         let expected_hex = String::from("746865206b696420646f6e277420706c6179");
 
-        let xor_result = xor::repeating_key_xor(into_bytes::from_hex(in1),
-                                               into_bytes::from_hex(in2));
+        let xor_result = encrypt::repeating_key_xor(into_bytes::from_hex(in1),
+                                                    into_bytes::from_hex(in2));
         let actual_hex = from_bytes::into_hex(xor_result);
 
         assert_eq!(expected_hex, actual_hex.to_lowercase());
@@ -62,14 +62,18 @@ mod set_1 {
         let expected_message = String::from("Now that the party is jumping\n");
         assert_eq!(expected_message, decrypted_message.decrypted_message)
     }
-//
-//    #[test]
-//    fn challenge_5() {
-//        let message = "Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal";
-//        let key = "ICE";
-//
-//        let expected_encrypted_message = "0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272a282b2f20430a652e2c652a3124333a653e2b2027630c692b20283165286326302e27282f";
-//
-//        assert_eq!(expected_encrypted_message, repeating_key_xor_encrypt(message, key));
-//    }
+
+    #[test]
+    fn challenge_5() {
+        let input = "Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal";
+        let input_bytes = into_bytes::from_utf8(input);
+        let key = "ICE";
+        let key_bytes = into_bytes::from_utf8(key);
+
+        let expected_encrypted_message = "0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272a282b2f20430a652e2c652a3124333a653e2b2027630c692b20283165286326302e27282f";
+
+        let actual_encrypted_bytes = encrypt::repeating_key_xor(input_bytes, key_bytes);
+
+        assert_eq!(expected_encrypted_message, from_bytes::into_hex(actual_encrypted_bytes).to_lowercase());
+    }
 }
