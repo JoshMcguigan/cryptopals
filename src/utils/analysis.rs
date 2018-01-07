@@ -1,18 +1,7 @@
 use std::ascii::AsciiExt;
 
-pub fn get_score(input: &str) -> f32 {
+pub fn get_score(input: &Vec<u8>) -> f32 {
     // Scores plain text input, higher scores indicate greater likelihood that the input is english plain text
-
-    let lower_case_input = input.to_lowercase();
-    let mut score : f32 = 0f32;
-    for char in lower_case_input.chars() {
-        score += char_to_score(char);
-    }
-    score / (input.len() as f32)
-
-}
-
-pub fn get_score_from_bytes(input: &Vec<u8>) -> f32 {
     let mut score = 0f32;
     for byte in input {
         let char = (byte.clone() as char).to_ascii_lowercase();
@@ -67,26 +56,18 @@ mod tests {
 
     #[test]
     fn test_get_score() {
-        let input = "Josh";
-        let expected_score : f32 = 5.02025;
-
-        assert_eq!(expected_score, get_score(input));
-    }
-
-    #[test]
-    fn test_get_score_from_bytes() {
         let input = vec![74u8, 111, 115, 104];
         let expected_score : f32 = 5.02025;
 
-        assert_eq!(expected_score, get_score_from_bytes(&input));
+        assert_eq!(expected_score, get_score(&input));
     }
 
     #[test]
-    fn test_get_score_from_bytes_should_return_low_score_for_non_ascii() {
+    fn test_get_score_should_return_low_score_for_non_ascii() {
         let input = vec![29u8, 31];
         let expected_score = -10f32;
 
-        assert_eq!(expected_score, get_score_from_bytes(&input));
+        assert_eq!(expected_score, get_score(&input));
     }
 
 }

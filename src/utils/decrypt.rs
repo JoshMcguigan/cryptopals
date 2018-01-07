@@ -26,7 +26,7 @@ pub fn single_byte_xor(input: Vec<u8>) -> DecryptedMessage {
     for key in 0u8..127u8 {
         let decrypted_bytes = encrypt::repeating_key_xor(input.clone(), vec![key]);
 
-        let score = plain_text_analysis::get_score_from_bytes(&decrypted_bytes);
+        let score = analysis::get_score(&decrypted_bytes);
 
         if score > result.score {
             result.score = score;
@@ -39,7 +39,7 @@ pub fn single_byte_xor(input: Vec<u8>) -> DecryptedMessage {
     result
 }
 
-fn multi_byte_xor_for_key_size(input: Vec<u8>, key_size: usize) -> DecryptedMessage {
+pub fn multi_byte_xor_for_key_size(input: Vec<u8>, key_size: usize) -> DecryptedMessage {
 
     let mut decrypted_messages = Vec::new();
 
