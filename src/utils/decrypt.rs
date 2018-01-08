@@ -3,6 +3,9 @@ extern crate itertools;
 use super::*;
 use self::itertools::Itertools;
 
+//extern crate openssl;
+//use self::openssl::symm::{Cipher, Crypter, Mode};
+
 pub struct DecryptedMessage {
     pub decrypted_bytes: Vec<u8>,
     pub key: Vec<u8>,
@@ -88,6 +91,14 @@ fn combine_decrypted_messages_from_multi_byte_xor(decrypted_messages: Vec<Decryp
     result
 }
 
+//pub fn aes_ecb(input: Vec<u8>, key: Vec<u8>) -> Vec<u8> {
+//    let decrypter = Crypter::new(Cipher::aes_128_ecb(), Mode::Decrypt, key.as_ref(), None);
+//    let mut decrypted = vec![0u8; input.len()+key.len()];
+//    decrypter.unwrap().update(&input[..input.len()], decrypted.as_mut_slice()).unwrap();
+//
+//    decrypted
+//}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -142,5 +153,15 @@ mod tests {
         assert_eq!(expected_score, result.score);
         assert_eq!(expected_key, result.key);
     }
+
+//    #[test]
+//    fn test_aes_ecb(){
+//        let input = into_bytes::from_hex("1266733444730cb9c584a2e9bf3f7352");
+//        let key = into_bytes::from_hex("BBBBBBBBBBBBBBBB");
+//
+//        let expected_result = into_bytes::from_hex("AAAAAAAAAAAAAAAA");
+//
+//        assert_eq!(expected_result, aes_ecb(input, key))
+//    }
 
 }
