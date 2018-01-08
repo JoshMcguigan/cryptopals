@@ -102,6 +102,11 @@ pub fn aes_ecb(input: Vec<u8>, key: Vec<u8>) -> Vec<u8> {
     result
 }
 
+pub fn is_aes_ecb(input: &Vec<u8>) -> bool {
+    // detects if data has been AES ECB encrypted by looking for repeated 16 byte blocks of data
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -167,4 +172,15 @@ mod tests {
         assert_eq!(expected_result, aes_ecb(input, key));
     }
 
+    #[test]
+    fn test_is_aes_ecb_returns_true(){
+        let aes_ecb_encrypted_bytes = into_bytes::from_hex("AA26D13908D945F088A6806AB3EAC449AA26D13908D945F088A6806AB3EAC449AA26D13908D945F088A6806AB3EAC449AA26D13908D945F088A6806AB3EAC449B9DFFE9EBF7CF3C4BBD340B17D841BB9");
+        assert_eq!(true, is_aes_ecb(aes_ecb_encrypted_bytes));
+    }
+
+    #[test]
+    fn test_is_aes_ecb_returns_false(){
+        let aes_cbc_encrypted_bytes = into_bytes::from_hex("AA26D13908D945F088A6806AB3EAC4490918537A264CF5B033AA8F1FEB0C9BFAE572A9461437C87C479143AA659CC1D27618E7A356CF19BEF9F9F4DF7AAE37C1102457436CA826297C3AFA7011097C44");
+        assert_eq!(false, is_aes_ecb(aes_cbc_encrypted_bytes));
+    }
 }
