@@ -110,28 +110,28 @@ mod set_1 {
         assert_eq!(expected_result, from_bytes::into_utf8(decrypted_bytes).unwrap());
     }
 
-//    #[test]
-//    fn challenge_8() {
-//
-//        let mut aes_ecb_encrypted_data : Vec<Vec<u8>> = Vec::new();
-//
-//        let file = File::open("resources/set_1/challenge_8.txt").unwrap();
-//        for line in BufReader::new(file).lines() {
-//
-//            let line_string = line.unwrap();
-//            let line_hex = line_string.as_ref();
-//            let line_bytes = into_bytes::from_hex(line_hex);
-//
-//            if decrypt::is_aes_ecb(&line_bytes) {
-//                aes_ecb_encrypted_data.push(line_bytes);
-//            }
-//
-//        }
-//
-//        let expected_quantity_of_aes_ecb_encrypted_data = 1usize;
-//
-//        assert_eq!(expected_quantity_of_aes_ecb_encrypted_data, aes_ecb_encrypted_data.len());
-//    }
+    #[test]
+    fn challenge_8() {
+
+        let mut aes_ecb_encrypted_data : Vec<Vec<u8>> = Vec::new();
+
+        let file = File::open("resources/set_1/challenge_8.txt").unwrap();
+        for line in BufReader::new(file).lines() {
+
+            let line_string = line.unwrap();
+            let line_hex = line_string.as_ref();
+            let line_bytes = into_bytes::from_hex(line_hex);
+
+            if decrypt::is_aes_ecb(&line_bytes) {
+                aes_ecb_encrypted_data.push(line_bytes);
+            }
+
+        }
+
+        let expected_quantity_of_aes_ecb_encrypted_data = 1usize;
+
+        assert_eq!(expected_quantity_of_aes_ecb_encrypted_data, aes_ecb_encrypted_data.len());
+    }
 
 
 }
