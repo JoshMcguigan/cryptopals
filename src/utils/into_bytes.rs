@@ -21,6 +21,20 @@ pub fn from_base64(input: &str) -> Vec<u8> {
     base64::decode_config(input, base64::MIME).unwrap()
 }
 
+pub fn with_padding(mut input: Vec<u8>, block_size: usize) -> Vec<u8> {
+    // Returns a vector whose number of bytes is an even multiple of the block size
+
+    let padding_byte = 4u8;
+
+    let padding_bytes_needed = block_size - (input.len() % block_size);
+
+    for _i in 0..padding_bytes_needed {
+        input.push(padding_byte);
+    }
+
+    input
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -51,6 +65,15 @@ mod tests {
         let expected: Vec<u8> = vec![65, 66, 67];
 
         assert_eq!(expected, from_base64("QU\nJD"));
+    }
+
+    #[test]
+    fn test_with_padding() {
+        let input = "JOSH";
+        let block_size = 8usize;
+
+        let expected_bytes = vec![74u8, 79, 83, 72, 4, 4, 4, 4];
+        assert_eq!(expected_bytes, with_padding(from_utf8(input), block_size));
     }
 
 }
