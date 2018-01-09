@@ -6,6 +6,8 @@ use self::itertools::Itertools;
 extern crate openssl;
 use self::openssl::symm::{Cipher, Crypter, Mode};
 
+use std::collections::HashSet;
+
 pub struct DecryptedMessage {
     pub decrypted_bytes: Vec<u8>,
     pub key: Vec<u8>,
@@ -104,6 +106,27 @@ pub fn aes_ecb(input: Vec<u8>, key: Vec<u8>) -> Vec<u8> {
 
 pub fn is_aes_ecb(input: &Vec<u8>) -> bool {
     // detects if data has been AES ECB encrypted by looking for repeated 16 byte blocks of data
+    // returns true if possible AES ECB encrypted data has been detected, otherwise returns false
+    let init_value = 0u8;
+    let mut blocks: HashSet<[&u8; 4]> = HashSet::new();
+
+    for byte_index in 0..input.len() {
+        let mut block = [&init_value; 4];
+        for block_index in 0usize..4 {
+            let byte = input.get(byte_index+block_index);
+            match byte {
+                None => {block[block_index] = &init_value;},
+                Some(byte) => {block[block_index] = byte;},
+            }
+        }
+
+        if blocks.contains(&block){
+            return true
+        } else {
+            blocks.insert(block);
+        }
+    }
+
     false
 }
 
@@ -175,12 +198,12 @@ mod tests {
     #[test]
     fn test_is_aes_ecb_returns_true(){
         let aes_ecb_encrypted_bytes = into_bytes::from_hex("AA26D13908D945F088A6806AB3EAC449AA26D13908D945F088A6806AB3EAC449AA26D13908D945F088A6806AB3EAC449AA26D13908D945F088A6806AB3EAC449B9DFFE9EBF7CF3C4BBD340B17D841BB9");
-        assert_eq!(true, is_aes_ecb(aes_ecb_encrypted_bytes));
+        assert_eq!(true, is_aes_ecb(&aes_ecb_encrypted_bytes));
     }
 
     #[test]
     fn test_is_aes_ecb_returns_false(){
         let aes_cbc_encrypted_bytes = into_bytes::from_hex("AA26D13908D945F088A6806AB3EAC4490918537A264CF5B033AA8F1FEB0C9BFAE572A9461437C87C479143AA659CC1D27618E7A356CF19BEF9F9F4DF7AAE37C1102457436CA826297C3AFA7011097C44");
-        assert_eq!(false, is_aes_ecb(aes_cbc_encrypted_bytes));
+        assert_eq!(false, is_aes_ecb(&aes_cbc_encrypted_bytes));
     }
 }
