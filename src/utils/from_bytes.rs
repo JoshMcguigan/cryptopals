@@ -12,8 +12,8 @@ pub fn into_hex(bytes: Vec<u8>) -> String {
     strings.join("")
 }
 
-pub fn into_utf8(bytes: Vec<u8>) -> Result<String, FromUtf8Error> {
-    String::from_utf8(bytes)
+pub fn into_utf8(bytes: Vec<u8>) -> String {
+    String::from_utf8_lossy(&bytes).into_owned()
 }
 
 #[cfg(test)]
@@ -44,6 +44,6 @@ mod tests {
 
         let expected = String::from("A");
 
-        assert_eq!(expected, into_utf8(bytes).unwrap());
+        assert_eq!(expected, into_utf8(bytes));
     }
 }
