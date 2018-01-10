@@ -4,7 +4,7 @@ extern crate openssl;
 use self::openssl::symm::{Cipher, Crypter, Mode};
 
 pub fn repeating_key_xor(input: Vec<u8>, key: Vec<u8>) -> Vec<u8> {
-
+    // TODO: move this functionality as it is used more generally than just encryption
     let mut encrypted_bytes : Vec<u8> = Vec::new();
 
     for (index, input_byte) in input.iter().enumerate() {

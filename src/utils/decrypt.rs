@@ -8,6 +8,13 @@ use self::openssl::symm::{Cipher, Crypter, Mode};
 
 use std::collections::HashSet;
 
+use std::io::prelude::*;
+use std::fs::File;
+use std::io::BufReader;
+use std::io::BufRead;
+
+const AES_BLOCK_SIZE_IN_BYTES : usize = 16usize;
+
 pub struct DecryptedMessage {
     pub decrypted_bytes: Vec<u8>,
     pub key: Vec<u8>,
@@ -108,12 +115,11 @@ pub fn is_aes_ecb(input: &Vec<u8>) -> bool {
     // detects if data has been AES ECB encrypted by looking for repeated 16 byte blocks of data
     // returns true if possible AES ECB encrypted data has been detected, otherwise returns false
     let zero_value = 0u8;
-    const BLOCK_SIZE_IN_BYTES : usize = 16usize;
-    let mut blocks: HashSet<[&u8; BLOCK_SIZE_IN_BYTES]> = HashSet::new();
+    let mut blocks: HashSet<[&u8; AES_BLOCK_SIZE_IN_BYTES]> = HashSet::new();
 
     for byte_index in 0..input.len() {
-        let mut block = [&zero_value; BLOCK_SIZE_IN_BYTES];
-        for block_index in 0usize..BLOCK_SIZE_IN_BYTES {
+        let mut block = [&zero_value; AES_BLOCK_SIZE_IN_BYTES];
+        for block_index in 0usize..AES_BLOCK_SIZE_IN_BYTES {
             let byte = input.get(byte_index+block_index);
             match byte {
                 None => {block[block_index] = &zero_value;},
@@ -131,10 +137,33 @@ pub fn is_aes_ecb(input: &Vec<u8>) -> bool {
     false
 }
 
-//pub fn aes_cbc(input: Vec<u8>, key: Vec<u8>, init_vector: Vec<u8>) -> Vec<u8> {
-//    // Initialization vector size must be equal to one block (4 bytes)
-//    assert_eq!(4usize, init_vector.len());
-//}
+pub fn aes_cbc(input: Vec<u8>, key: Vec<u8>, init_vector: Vec<u8>) -> Vec<u8> {
+    // Initialization vector size must be equal to one block (16 bytes)
+    assert_eq!(AES_BLOCK_SIZE_IN_BYTES, init_vector.len());
+
+    let input = into_bytes::with_padding(input, AES_BLOCK_SIZE_IN_BYTES);
+
+    let mut result = Vec::new();
+
+    for byte_index in (0..input.len()).step(AES_BLOCK_SIZE_IN_BYTES) {
+        let input_block = input[byte_index..(byte_index + AES_BLOCK_SIZE_IN_BYTES)].to_vec();
+        let mut decrypted_block = aes_ecb(input_block, key.clone());
+
+        let xor_with = match byte_index {
+            0 => init_vector.clone(),
+            _ => {
+                let previous_block_of_encrypted_data = input[(byte_index-AES_BLOCK_SIZE_IN_BYTES)..byte_index].to_vec();
+                previous_block_of_encrypted_data
+            }
+        };
+
+        let mut decrypted_and_xored_block = encrypt::repeating_key_xor(decrypted_block, xor_with);
+
+        result.append(&mut decrypted_and_xored_block);
+    }
+
+    result
+}
 
 #[cfg(test)]
 mod tests {
@@ -213,8 +242,19 @@ mod tests {
         assert_eq!(false, is_aes_ecb(&aes_cbc_encrypted_bytes));
     }
 
-//    #[test]
-//    fn test_aes_cbc(){
-//
-//    }
+    #[test]
+    fn test_aes_cbc() {
+        let mut file = File::open("resources/set_2/challenge_10.txt").unwrap();
+        let mut contents = String::new();
+        let _file_read_result = file.read_to_string(&mut contents);
+        let input_bytes = into_bytes::from_base64(&contents);
+        let key = into_bytes::from_utf8("YELLOW SUBMARINE");
+        let iv = vec![0u8; 16];
+
+        let decrypted_bytes = decrypt::aes_cbc(input_bytes, key, iv);
+
+        let expected_result = String::from("I\'m back and I\'m ringin\' the bell \nA rockin\' on the mike while the fly girls yell \nIn ecstasy in the back of me \nWell that\'s my DJ Deshay cuttin\' all them Z\'s \nHittin\' hard and the girlies goin\' crazy \nVanilla\'s on the mike, man I\'m not lazy. \n\nI\'m lettin\' my drug kick in \nIt controls my mouth and I begin \nTo just let it flow, let my concepts go \nMy posse\'s to the side yellin\', Go Vanilla Go! \n\nSmooth \'cause that\'s the way I will be \nAnd if you don\'t give a damn, then \nWhy you starin\' at me \nSo get off \'cause I control the stage \nThere\'s no dissin\' allowed \nI\'m in my own phase \nThe girlies sa y they love me and that is ok \nAnd I can dance better than any kid n\' play \n\nStage 2 -- Yea the one ya\' wanna listen to \nIt\'s off my head so let the beat play through \nSo I can funk it up and make it sound good \n1-2-3 Yo -- Knock on some wood \nFor good luck, I like my rhymes atrocious \nSupercalafragilisticexpialidocious \nI\'m an effect and that you can bet \nI can take a fly girl and make her wet. \n\nI\'m like Samson -- Samson to Delilah \nThere\'s no denyin\', You can try to hang \nBut you\'ll keep tryin\' to get my style \nOver and over, practice makes perfect \nBut not if you\'re a loafer. \n\nYou\'ll get nowhere, no place, no time, no girls \nSoon -- Oh my God, homebody, you probably eat \nSpaghetti with a spoon! Come on and say it! \n\nVIP. Vanilla Ice yep, yep, I\'m comin\' hard like a rhino \nIntoxicating so you stagger like a wino \nSo punks stop trying and girl stop cryin\' \nVanilla Ice is sellin\' and you people are buyin\' \n\'Cause why the freaks are jockin\' like Crazy Glue \nMovin\' and groovin\' trying to sing along \nAll through the ghetto groovin\' this here song \nNow you\'re amazed by the VIP posse. \n\nSteppin\' so hard like a German Nazi \nStartled by the bases hittin\' ground \nThere\'s no trippin\' on mine, I\'m just gettin\' down \nSparkamatic, I\'m hangin\' tight like a fanatic \nYou trapped me once and I thought that \nYou might have it \nSo step down and lend me your ear \n\'89 in my time! You, \'90 is my year. \n\nYou\'re weakenin\' fast, YO! and I can tell it \nYour body\'s gettin\' hot, so, so I can smell it \nSo don\'t be mad and don\'t be sad \n\'Cause the lyrics belong to ICE, You can call me Dad \nYou\'re pitchin\' a fit, so step back and endure \nLet the witch doctor, Ice, do the dance to cure \nSo come up close and don\'t be square \nYou wanna battle me -- Anytime, anywhere \n\nYou thought that I was weak, Boy, you\'re dead wrong \nSo come on, everybody and sing this song \n\nSay -- Play that funky music Say, go white boy, go white boy go \nplay that funky music Go white boy, go white boy, go \nLay down and boogie and play that funky music till you die. \n\nPlay that funky music Come on, Come on, let me hear \nPlay that funky music white boy you say it, say it \nPlay that funky music A little louder now \nPlay that funky music, white boy Come on, Come on, Come on \nPlay that funky music \n\u{4}\u{4}\u{4}\u{4}");
+
+        assert_eq!(expected_result, from_bytes::into_utf8(decrypted_bytes).unwrap());
+    }
 }
