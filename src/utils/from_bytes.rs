@@ -1,5 +1,4 @@
 extern crate base64;
-use std::string::FromUtf8Error;
 
 pub fn into_base64(bytes: Vec<u8>) -> String {
     base64::encode(bytes.as_slice())

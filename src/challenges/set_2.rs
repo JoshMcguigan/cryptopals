@@ -1,8 +1,6 @@
 use utils::*;
 use std::io::prelude::*;
 use std::fs::File;
-use std::io::BufReader;
-use std::io::BufRead;
 
 #[test]
 fn challenge_9() {

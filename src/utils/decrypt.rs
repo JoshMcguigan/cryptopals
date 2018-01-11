@@ -8,11 +8,6 @@ use self::openssl::symm::{Cipher, Crypter, Mode};
 
 use std::collections::HashSet;
 
-use std::io::prelude::*;
-use std::fs::File;
-use std::io::BufReader;
-use std::io::BufRead;
-
 const AES_BLOCK_SIZE_IN_BYTES : usize = 16usize;
 
 pub struct DecryptedMessage {
@@ -147,7 +142,7 @@ pub fn aes_cbc(input: Vec<u8>, key: Vec<u8>, init_vector: Vec<u8>) -> Vec<u8> {
 
     for byte_index in (0..input.len()).step(AES_BLOCK_SIZE_IN_BYTES) {
         let input_block = input[byte_index..(byte_index + AES_BLOCK_SIZE_IN_BYTES)].to_vec();
-        let mut decrypted_block = aes_ecb(input_block, key.clone());
+        let decrypted_block = aes_ecb(input_block, key.clone());
 
         let xor_with = match byte_index {
             0 => init_vector.clone(),
