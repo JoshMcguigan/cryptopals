@@ -3,3 +3,4 @@ pub mod from_bytes;
 pub mod encrypt;
 pub mod decrypt;
 pub mod analysis;
+pub mod constants;
