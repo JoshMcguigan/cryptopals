@@ -1,5 +1,3 @@
-use std::ascii::AsciiExt;
-
 pub fn get_score(input: &Vec<u8>) -> f32 {
     // Scores plain text input, higher scores indicate greater likelihood that the input is english plain text
     let mut score = 0f32;
