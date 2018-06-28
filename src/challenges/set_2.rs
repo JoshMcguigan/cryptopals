@@ -20,7 +20,13 @@ fn get_random_bytes(size: usize) -> Vec<u8> {
     output
 }
 
-fn encryption_oracle(input: Vec<u8>) -> Vec<u8> {
+#[derive(Debug, PartialEq)]
+enum OracleEncryptionChoice {
+    ECB,
+    CBC,
+}
+
+fn encryption_oracle(input: Vec<u8>) -> (Vec<u8>, OracleEncryptionChoice) {
     let length_of_random_bytes_to_prepend = rand::thread_rng().gen_range(5,10);
     let length_of_random_bytes_to_append = rand::thread_rng().gen_range(5,10);
 
@@ -31,9 +37,9 @@ fn encryption_oracle(input: Vec<u8>) -> Vec<u8> {
     let random_boolean: bool = rand::thread_rng().gen();
 
     if random_boolean {
-        encrypt::aes_ecb(mutated_input, random_aes_key())
+        (encrypt::aes_ecb(mutated_input, random_aes_key()), OracleEncryptionChoice::ECB)
     } else {
-        encrypt::aes_cbc(mutated_input, random_aes_key(), random_aes_key())
+        (encrypt::aes_cbc(mutated_input, random_aes_key(), random_aes_key()), OracleEncryptionChoice::CBC)
     }
 }
 
@@ -64,10 +70,17 @@ fn challenge_10() {
 
 #[test]
 fn challenge_11() {
-    let input = into_bytes::from_utf8("Now that you have ECB and CBC working: Write a function to generate a random AES key; that's just 16 random bytes. Write a function that encrypts data under an unknown key --- that is, a function that generates a random key and encrypts under it.");
+    let input = into_bytes::from_utf8("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
 
-    println!("Encrypted output, hex encoded: {:?}", from_bytes::into_hex(encryption_oracle(input)));
+    for _ in 0..10 {
+        let (encrypted_bytes, encryption_choice) = encryption_oracle(input.clone());
 
+        let detected_encryption =
+            if analysis::detect_repeating_blocks(&encrypted_bytes, 2) {
+                OracleEncryptionChoice::ECB
+            } else { OracleEncryptionChoice::CBC };
 
-    // TODO need to write analysis tool to detect CBC vs ECB from encryption oracle
+        assert_eq!(encryption_choice, detected_encryption);
+    }
+
 }

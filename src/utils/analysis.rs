@@ -48,6 +48,19 @@ fn char_to_score(char: char) -> f32 {
     }
 }
 
+pub fn detect_repeating_blocks(input: &Vec<u8>, repeat_length: usize) -> bool {
+    for i in 0..(input.len()-repeat_length) {
+        let byte_block = &input[i..i+repeat_length];
+        for j in i+repeat_length..(input.len()-repeat_length) {
+            if byte_block == &input[j..j+repeat_length]{
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -66,6 +79,18 @@ mod tests {
         let expected_score = -10f32;
 
         assert_eq!(expected_score, get_score(&input));
+    }
+
+    #[test]
+    fn test_detect_repeating_blocks_for_non_repeating_sequence() {
+        let input = vec![1u8, 2, 3, 4, 5, 6, 7, 8];
+        assert!(!detect_repeating_blocks(&input, 2));
+    }
+
+    #[test]
+    fn test_detect_repeating_blocks_for_repeating_sequence() {
+        let input = vec![1u8, 2, 3, 2, 3, 6, 7, 8];
+        assert!(detect_repeating_blocks(&input, 2));
     }
 
 }
