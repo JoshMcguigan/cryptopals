@@ -20,6 +20,17 @@ pub fn repeating_key_xor(input: Vec<u8>, key: Vec<u8>) -> Vec<u8> {
     encrypted_bytes
 }
 
+pub fn aes_ecb_unpadded(input: Vec<u8>, key: Vec<u8>) -> Vec<u8> {
+    let encrypter = Crypter::new(Cipher::aes_128_ecb(), Mode::Encrypt, key.as_ref(), None);
+    let mut encrypted = vec![0u8; input.len()+key.len()];
+    let result_length = encrypter.unwrap().update(input.as_ref(), encrypted.as_mut_slice()).unwrap();
+
+    let mut result = vec![0u8; result_length];
+    result.copy_from_slice(&encrypted[0..result_length]);
+
+    result
+}
+
 pub fn aes_ecb(input: Vec<u8>, key: Vec<u8>) -> Vec<u8> {
     let encrypter = Crypter::new(Cipher::aes_128_ecb(), Mode::Encrypt, key.as_ref(), None);
     let mut encrypted = vec![0u8; input.len()+key.len()];

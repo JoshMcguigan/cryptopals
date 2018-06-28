@@ -43,6 +43,29 @@ fn encryption_oracle(input: Vec<u8>) -> (Vec<u8>, OracleEncryptionChoice) {
     }
 }
 
+fn ecb_encrypt_blackbox(input: &str) -> Vec<u8> {
+    let aes_key = into_bytes::from_hex("796DAEE0CB587BB6B0068CD94D563C6A");
+
+    let mut input_bytes = into_bytes::from_utf8(input);
+    let mut unknown_string = into_bytes::from_base64("Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK");
+    input_bytes.append(&mut unknown_string);
+
+    encrypt::aes_ecb_unpadded(input_bytes, aes_key)
+}
+
+fn block_size_detection() -> usize {
+    let mut input = "A".to_string();
+    let initial_size = ecb_encrypt_blackbox(input.as_ref()).len();
+
+    loop {
+        input += "A";
+        let size = ecb_encrypt_blackbox(input.as_ref()).len();
+        if size != initial_size {
+            return size - initial_size
+        }
+    }
+}
+
 #[test]
 fn challenge_9() {
     let input_bytes = into_bytes::from_utf8("YELLOW SUBMARINE");
@@ -72,7 +95,7 @@ fn challenge_10() {
 fn challenge_11() {
     let input = into_bytes::from_utf8("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
 
-    for _ in 0..10 {
+    for _ in 0..5 {
         let (encrypted_bytes, encryption_choice) = encryption_oracle(input.clone());
 
         let detected_encryption =
@@ -82,5 +105,11 @@ fn challenge_11() {
 
         assert_eq!(encryption_choice, detected_encryption);
     }
+}
+
+#[test]
+fn challenge_12() {
+    assert_eq!(16, block_size_detection());
+
 
 }
