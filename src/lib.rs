@@ -2,6 +2,7 @@ use std::num::NonZero;
 
 pub mod aes;
 pub mod analysis;
+pub mod pad;
 
 /// Performs repeating key XOR.
 ///
