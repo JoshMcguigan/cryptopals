@@ -1,5 +1,6 @@
 use std::num::NonZero;
 
+pub mod aes;
 pub mod analysis;
 
 /// Performs repeating key XOR.
