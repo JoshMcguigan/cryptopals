@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use cryptopals::{aes, find_xor_keysize};
 
 use data_encoding::{BASE64, HEXLOWER};
@@ -144,4 +146,32 @@ fn challenge_07() {
     let plaintext = aes::ecb_decrypt(key.into(), &ciphertext);
 
     assert_snapshot!(String::from_utf8_lossy(&plaintext));
+}
+
+#[test]
+fn challenge_08() {
+    let ciphertext_hex_lines = include_str!("challenge-data/8.txt");
+
+    let index_of_ecb_ciphertext =
+        ciphertext_hex_lines
+            .lines()
+            .enumerate()
+            .find_map(|(index, ciphertext_hex_line)| {
+                let ciphertext = HEXLOWER
+                    .decode(ciphertext_hex_line.as_bytes())
+                    .expect("input is valid hex");
+
+                let mut set = HashSet::new();
+                for block in ciphertext.chunks_exact(16) {
+                    if !set.insert(block) {
+                        // Duplicate block detected, this is likely ECB
+                        return Some(index);
+                    }
+                }
+
+                // No duplicate was detected, this is likely not ECB
+                None
+            });
+
+    assert_eq!(Some(132), index_of_ecb_ciphertext);
 }
