@@ -1,9 +1,27 @@
 use aes::{
     Aes128,
-    cipher::{BlockDecrypt as _, Key, KeyInit as _},
+    cipher::{BlockDecrypt as _, BlockEncryptMut as _, Key, KeyInit as _},
 };
 
-use crate::pad::pkcs7_remove;
+use crate::pad::{pkcs7, pkcs7_remove};
+
+const AES_BLOCK_SIZE: u8 = 16;
+
+/// Encrypts with AES ECB.
+///
+/// Padding bytes is added per PKCS#7.
+pub fn ecb_encrypt(key: &Key<Aes128>, plaintext: &[u8]) -> Vec<u8> {
+    let mut cipher = Aes128::new(key);
+
+    let mut ciphertext = Vec::from(plaintext);
+    pkcs7(&mut ciphertext, AES_BLOCK_SIZE);
+
+    for ciphertext_block in ciphertext.chunks_exact_mut(AES_BLOCK_SIZE as usize) {
+        cipher.encrypt_block_mut(ciphertext_block.into());
+    }
+
+    ciphertext
+}
 
 /// Decrypts AES ECB. Ciphertext length should be a multiple of the block
 /// size, trailing bytes which don't fill a block are ignored.
@@ -12,10 +30,11 @@ use crate::pad::pkcs7_remove;
 pub fn ecb_decrypt(key: &Key<Aes128>, ciphertext: &[u8]) -> Vec<u8> {
     let cipher = Aes128::new(key);
     let mut plaintext = vec![0; ciphertext.len()];
-    for (i, cipher_block) in ciphertext.chunks_exact(16).enumerate() {
+    for (i, cipher_block) in ciphertext.chunks_exact(AES_BLOCK_SIZE as usize).enumerate() {
         cipher.decrypt_block_b2b(
             cipher_block.into(),
-            (&mut plaintext[(16 * i)..(16 * (i + 1))]).into(),
+            (&mut plaintext[(AES_BLOCK_SIZE as usize * i)..(AES_BLOCK_SIZE as usize * (i + 1))])
+                .into(),
         );
     }
 
@@ -33,23 +52,40 @@ pub fn ecb_decrypt(key: &Key<Aes128>, ciphertext: &[u8]) -> Vec<u8> {
 pub fn cbc_decrypt(key: &Key<Aes128>, ciphertext: &[u8], iv: &[u8]) -> Vec<u8> {
     let cipher = Aes128::new(key);
     let mut plaintext = vec![0; ciphertext.len()];
-    for (i, cipher_block) in ciphertext.chunks_exact(16).enumerate() {
+    for (i, cipher_block) in ciphertext.chunks_exact(AES_BLOCK_SIZE as usize).enumerate() {
         cipher.decrypt_block_b2b(
             cipher_block.into(),
-            (&mut plaintext[(16 * i)..(16 * (i + 1))]).into(),
+            (&mut plaintext[(AES_BLOCK_SIZE as usize * i)..(AES_BLOCK_SIZE as usize * (i + 1))])
+                .into(),
         );
 
         let previous_cipher_block = if i == 0 {
             iv
         } else {
-            &ciphertext[(16 * (i - 1))..(16 * i)]
+            &ciphertext[(AES_BLOCK_SIZE as usize * (i - 1))..(AES_BLOCK_SIZE as usize * i)]
         };
-        for j in 0..16 {
-            plaintext[16 * i + j] ^= previous_cipher_block[j];
+        for j in 0..(AES_BLOCK_SIZE as usize) {
+            plaintext[AES_BLOCK_SIZE as usize * i + j] ^= previous_cipher_block[j];
         }
     }
 
     pkcs7_remove(&mut plaintext);
 
     plaintext
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ecb_decrypt, ecb_encrypt};
+
+    #[test]
+    fn ecb_round_trip() {
+        let key = b"YELLOW SUBMARINE".into();
+        let plaintext = b"what time is it game time, what time is it game time";
+
+        assert_eq!(
+            plaintext[..],
+            ecb_decrypt(key, &ecb_encrypt(key, plaintext))[..]
+        );
+    }
 }
