@@ -52,21 +52,18 @@ pub fn ecb_decrypt(key: &Key<Aes128>, ciphertext: &[u8]) -> Vec<u8> {
 pub fn cbc_decrypt(key: &Key<Aes128>, ciphertext: &[u8], iv: &[u8]) -> Vec<u8> {
     let cipher = Aes128::new(key);
     let mut plaintext = vec![0; ciphertext.len()];
-    for (i, cipher_block) in ciphertext.chunks_exact(AES_BLOCK_SIZE as usize).enumerate() {
-        cipher.decrypt_block_b2b(
-            cipher_block.into(),
-            (&mut plaintext[(AES_BLOCK_SIZE as usize * i)..(AES_BLOCK_SIZE as usize * (i + 1))])
-                .into(),
-        );
+    let mut previous_cipher_block = iv;
 
-        let previous_cipher_block = if i == 0 {
-            iv
-        } else {
-            &ciphertext[(AES_BLOCK_SIZE as usize * (i - 1))..(AES_BLOCK_SIZE as usize * i)]
-        };
-        for j in 0..(AES_BLOCK_SIZE as usize) {
-            plaintext[AES_BLOCK_SIZE as usize * i + j] ^= previous_cipher_block[j];
+    for (cipher_block, plaintext_block) in ciphertext
+        .chunks_exact(AES_BLOCK_SIZE as usize)
+        .zip(plaintext.chunks_exact_mut(AES_BLOCK_SIZE as usize))
+    {
+        cipher.decrypt_block_b2b(cipher_block.into(), plaintext_block.into());
+
+        for i in 0..(AES_BLOCK_SIZE as usize) {
+            plaintext_block[i] ^= previous_cipher_block[i];
         }
+        previous_cipher_block = cipher_block;
     }
 
     pkcs7_remove(&mut plaintext);
