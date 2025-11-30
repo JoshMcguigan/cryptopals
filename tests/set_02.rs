@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use cryptopals::{
     aes,
@@ -203,4 +203,79 @@ fn challenge_12() {
         panic!("should always find a valid solution after checking all bytes")
     }
     assert_snapshot!(String::from_utf8_lossy(&plaintext_of_secret));
+}
+
+#[test]
+fn challenge_13() {
+    fn profile_for(email: &str) -> String {
+        let email = email.replace('&', ".");
+        let email = email.replace('=', ".");
+
+        format!("email={email}&uid=10&role=user")
+    }
+
+    fn parse_kv(input: &str) -> HashMap<String, String> {
+        input
+            .split('&')
+            .filter_map(|s| {
+                s.split_once('=')
+                    .map(|(s1, s2)| (s1.to_string(), s2.to_string()))
+            })
+            .collect()
+    }
+
+    fn is_admin(input: &str) -> bool {
+        let kv = parse_kv(input);
+
+        kv.get("role").map(|v| v == "admin").unwrap_or(false)
+    }
+
+    assert!(!is_admin(&profile_for("notadmin@foo.bar")));
+
+    let key = b"YELLOW SUBMARINE";
+
+    let encrypt_user =
+        |email: &str| -> Vec<u8> { aes::ecb_encrypt(key.into(), profile_for(email).as_bytes()) };
+
+    let decrypt_user_is_admin = |ciphertext: Vec<u8>| -> bool {
+        is_admin(&String::from_utf8_lossy(&aes::ecb_decrypt(
+            key.into(),
+            &ciphertext,
+        )))
+    };
+
+    assert!(!decrypt_user_is_admin(encrypt_user("notadmin@foo.bar")));
+
+    // Need to encrypt "&role=admin". Since it can't be done in the email
+    // address due to filtering, it will need to be done in a couple
+    // blocks.
+    //
+    //  0123456789ABCDEF
+    // "admin" (padded to a block length with 11 bytes of value 11)
+    // "com&uid=10&role="
+    //
+    // This can be done with a single account:
+    //
+    //  0123456789ABCDEF   0123456789ABCDEF   0123456789ABCDEF   0123456789ABCDEF   0123456789ABCDEF
+    // "email=0123456789" "admin(pad      )" "placeholder@foo." "com&uid=10&role=" "user(pad       )"
+
+    let malicious_email = {
+        let mut bytes = Vec::from(b"0123456789admin");
+        bytes.extend_from_slice(&[11; 11]);
+        bytes.extend_from_slice(b"placeholder@foo.com");
+        unsafe { String::from_utf8_unchecked(bytes) }
+    };
+    let malicious_ciphertext = encrypt_user(&malicious_email);
+
+    // Then we make an account of appropriate length to append to:
+    //
+    //  0123456789ABCDEF   0123456789ABCDEF
+    // "testacc@foo.com&" "uid=10&role=user"
+
+    let email = "testacc@foo.com";
+    let mut ciphertext = encrypt_user(email);
+    ciphertext.extend_from_slice(&malicious_ciphertext[48..64]);
+    ciphertext.extend_from_slice(&malicious_ciphertext[16..32]);
+
+    assert!(decrypt_user_is_admin(ciphertext));
 }
