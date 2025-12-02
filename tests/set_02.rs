@@ -279,3 +279,144 @@ fn challenge_13() {
 
     assert!(decrypt_user_is_admin(ciphertext));
 }
+
+#[test]
+fn challenge_14() {
+    fn encryption_oracle(plaintext: &[u8]) -> Vec<u8> {
+        // Challenge 14 suggests re-using the same bytes as challenge 12.
+        let secret_text_base64 = include_str!("challenge-data/12.txt");
+        let secret_text = secret_text_base64
+            .lines()
+            .flat_map(|line| {
+                BASE64
+                    .decode(line.as_bytes())
+                    .expect("input should be valid base64")
+            })
+            .collect::<Vec<u8>>();
+        let key = b"YELLOW SUBMARINE".into();
+
+        let mut prefix_plus_plaintext_plus_secret = Vec::from(b"12345");
+        prefix_plus_plaintext_plus_secret.extend_from_slice(plaintext);
+        prefix_plus_plaintext_plus_secret.extend_from_slice(&secret_text);
+
+        aes::ecb_encrypt(key, &prefix_plus_plaintext_plus_secret)
+    }
+
+    // Detect block size
+    let initial_ciphertext_len = encryption_oracle(&[]).len();
+    let mut i = 0;
+    let block_size = loop {
+        i += 1;
+        let len = encryption_oracle(&vec![0; i]).len();
+        if len != initial_ciphertext_len {
+            break len - initial_ciphertext_len;
+        }
+    };
+    let bytes_needed_to_pad_to_next_block = i;
+    assert_eq!(16, block_size);
+
+    // Detect ECB mode
+    fn detect_ecb<'a>(encryption_oracle: impl Fn(&'a [u8]) -> Vec<u8>) -> bool {
+        let plaintext = b"YELLOW SUBMARINEYELLOW SUBMARINEYELLOW SUBMARINE";
+        let mut chunks = HashSet::new();
+        for chunk in encryption_oracle(plaintext).chunks_exact(16) {
+            if !chunks.insert(chunk) {
+                return true;
+            }
+        }
+        false
+    }
+    assert!(detect_ecb(encryption_oracle));
+
+    // Detect prefix and suffix length
+    let plaintext = vec![0; 48];
+    let ciphertext = encryption_oracle(&plaintext);
+
+    let mut all_zero_block_ciphertext: Option<Vec<u8>> = None;
+    for i in (0..ciphertext.len()).step_by(16) {
+        if let (Some(block_1), Some(block_2)) = (
+            ciphertext.get(i..(i + 16)),
+            ciphertext.get(i + 16..(i + 32)),
+        ) {
+            if block_1 == block_2 {
+                all_zero_block_ciphertext = Some(block_1.to_vec());
+            }
+        } else {
+            break;
+        }
+    }
+    // This will always find a duplicate block. However, there are cases where it could find the wrong
+    // block, for example if the prefix includes duplicate blocks. We could filter for this by checking
+    // the ciphertext when passing empty byte string as input.
+    let all_zero_block_ciphertext =
+        all_zero_block_ciphertext.expect("must have found duplicate block");
+
+    let (duplicate_block_index, i, total_num_blocks) = (0..16)
+        .into_iter()
+        .find_map(|i| {
+            // Prefix with anything other than zero, so it stands out
+            // against our all zero block.
+            let mut plaintext = vec![1; i];
+            plaintext.extend_from_slice(&[0; 16]);
+
+            let ciphertext = encryption_oracle(&plaintext);
+            ciphertext
+                .chunks_exact(16)
+                .enumerate()
+                .find_map(|(duplicate_block_index, block)| {
+                    if block == all_zero_block_ciphertext {
+                        Some((duplicate_block_index, i, ciphertext.len() / 16))
+                    } else {
+                        None
+                    }
+                })
+        })
+        .expect("must find block");
+    let prefix_len = duplicate_block_index * 16 - i;
+    assert_eq!(5, prefix_len);
+
+    // Subtracting two blocks:
+    // * All zero block
+    // * Full block of PKCS#7 padding
+    let suffix_len = (total_num_blocks - duplicate_block_index - 2) * 16 + 16
+        - prefix_len
+        - bytes_needed_to_pad_to_next_block;
+    assert_eq!(138, suffix_len);
+
+    let mut plaintext_of_secret = vec![];
+    'outer: for byte_index_to_break in (prefix_len..(prefix_len + suffix_len)).rev() {
+        // We always want to make byte_index_to_break the first
+        // byte of a block.
+        let target_byte_position = byte_index_to_break.next_multiple_of(16);
+        let padding_required = target_byte_position - byte_index_to_break;
+        let block_index = target_byte_position / 16;
+        let cipher_block_to_match: Vec<u8> = encryption_oracle(&vec![0; padding_required])
+            .chunks_exact(16)
+            .nth(block_index)
+            .expect("ciphertext should be long enough")
+            .into();
+
+        // Insert arbitrary data for now, the value will be updated in
+        // the loop below.
+        plaintext_of_secret.insert(0, 0);
+        pkcs7(&mut plaintext_of_secret, 16);
+        for i in u8::MIN..=u8::MAX {
+            plaintext_of_secret[0] = i;
+            // This only handles prefixes of less than a block size.
+            let mut text_to_encrypt = vec![0; 16 - prefix_len];
+            text_to_encrypt.extend_from_slice(&plaintext_of_secret);
+            let cipher_block_to_check: Vec<u8> = encryption_oracle(&text_to_encrypt)
+                .chunks_exact(16)
+                // This only handles prefixes of less than a block size.
+                .nth(1)
+                .expect("ciphertext should be long enough")
+                .into();
+            if cipher_block_to_check == cipher_block_to_match {
+                pkcs7_remove(&mut plaintext_of_secret);
+                continue 'outer;
+            }
+        }
+        panic!("should always find a valid solution after checking all bytes")
+    }
+    assert_snapshot!(String::from_utf8_lossy(&plaintext_of_secret));
+}
