@@ -8,9 +8,31 @@ pub fn pkcs7(text: &mut Vec<u8>, block_size: u8) {
 
 pub fn pkcs7_remove(text: &mut Vec<u8>) {
     // We could validate that each of the padding bytes has the same
-    // value as the last byte, and that but we don't do that here.
+    // value as the last byte, and that the value is <= block size,
+    // but we don't do that here.
     if let Some(last_byte) = text.last().copied() {
         text.truncate(text.len() - last_byte as usize);
+    }
+}
+
+pub fn pkcs7_valid(text: &[u8]) -> bool {
+    if !text.len().is_multiple_of(16) {
+        return false;
+    }
+
+    if let Some(last_byte) = text.last().copied() {
+        if last_byte as usize > 16 {
+            return false;
+        }
+
+        text.iter()
+            .rev()
+            .copied()
+            .take(last_byte as usize)
+            .all(|b| b == last_byte)
+    } else {
+        // If there is no last byte, the padding is not valid.
+        false
     }
 }
 

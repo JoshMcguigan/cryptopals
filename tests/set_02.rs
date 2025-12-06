@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use cryptopals::{
     aes,
-    pad::{pkcs7, pkcs7_remove},
+    pad::{pkcs7, pkcs7_remove, pkcs7_valid},
 };
 
 use data_encoding::BASE64;
@@ -419,4 +419,20 @@ fn challenge_14() {
         panic!("should always find a valid solution after checking all bytes")
     }
     assert_snapshot!(String::from_utf8_lossy(&plaintext_of_secret));
+}
+
+#[test]
+fn challenge_15() {
+    assert!(!pkcs7_valid(&[]));
+    assert!(!pkcs7_valid(&[1]));
+    assert!(!pkcs7_valid(&[32; 32]));
+    assert!(!pkcs7_valid(&[
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
+    ]));
+    assert!(!pkcs7_valid(&[
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 2
+    ]));
+    assert!(pkcs7_valid(&[
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 1
+    ]));
 }
