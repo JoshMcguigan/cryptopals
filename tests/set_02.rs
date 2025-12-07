@@ -436,3 +436,114 @@ fn challenge_15() {
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 1
     ]));
 }
+
+/// Simplified version of challenge 16, where the attacker modifies
+/// the IV to change the plaintext in the first block.
+#[test]
+fn challenge_16_pre() {
+    let (encrypt_user_data, decrypt) = {
+        let key = b"YELLOW SUBMARINE";
+        // Using the same IV is exploitable, but we'll pretend like this function
+        // is using a unique IV each time.
+        let iv = b"yellow submarine";
+
+        let encrypt_user_data = |plaintext: &[u8]| -> Vec<u8> {
+            let ciphertext = aes::cbc_encrypt(key.into(), plaintext, iv);
+
+            // Return the ciphertext pre-pended with the IV.
+            let mut ret = vec![];
+            ret.extend_from_slice(iv);
+            ret.extend_from_slice(&ciphertext);
+
+            ret
+        };
+
+        let decrypt = |ciphertext: &[u8]| -> Vec<u8> {
+            aes::cbc_decrypt(key.into(), &ciphertext[16..], &ciphertext[0..16])
+        };
+
+        (encrypt_user_data, decrypt)
+    };
+
+    let mut plaintext = vec![0; 16];
+    plaintext[0] = 1;
+    let mut ciphertext = encrypt_user_data(&plaintext);
+
+    // Show that we can round-trip the data with no modifications.
+    let decrypted_plaintext = decrypt(&ciphertext);
+    assert_eq!(1, decrypted_plaintext[0]);
+
+    // Now flip a bit.
+    //
+    // By flipping the bit at index 1 in the IV, we can flip that
+    // same bit in the output.
+    ciphertext[0] ^= 0b10;
+    let decrypted_plaintext = decrypt(&ciphertext);
+    assert_eq!(3, decrypted_plaintext[0]);
+}
+
+#[test]
+fn challenge_16() {
+    let (encrypt_user_data, decrypt_is_admin) = {
+        let key = b"YELLOW SUBMARINE";
+        // Using the same IV is exploitable, but we'll pretend like this function
+        // is using a unique IV each time.
+        let iv = b"yellow submarine";
+
+        let encrypt_user_data = |user_data: &[u8]| -> Vec<u8> {
+            // This function should validate user input, but we'll skip that.
+
+            let prefix = b"comment1=cooking%20MCs;userdata=";
+            let suffix = b";comment2=%20like%20a%20pound%20of%20bacon";
+            let mut plaintext = Vec::from(prefix);
+            plaintext.extend_from_slice(user_data);
+            plaintext.extend_from_slice(suffix);
+
+            let ciphertext = aes::cbc_encrypt(key.into(), &plaintext, iv);
+
+            // Return the ciphertext pre-pended with the IV.
+            let mut ret = vec![];
+            ret.extend_from_slice(iv);
+            ret.extend_from_slice(&ciphertext);
+
+            ret
+        };
+
+        let decrypt_is_admin = |ciphertext: &[u8]| -> bool {
+            let plaintext = aes::cbc_decrypt(key.into(), &ciphertext[16..], &ciphertext[0..16]);
+            let target_bytes = b";admin=true;";
+            plaintext
+                .windows(target_bytes.len())
+                .any(|w| w == target_bytes)
+        };
+
+        (encrypt_user_data, decrypt_is_admin)
+    };
+
+    // Block which is close to the value we want.
+    let close = b"9admin9true9abcd";
+
+    let mut ciphertext = encrypt_user_data(close);
+
+    // Without modification, we are not admin
+    assert!(!decrypt_is_admin(&ciphertext));
+
+    // Blocks of ciphertext:
+    // * 0 - iv
+    // * 1 & 2 - prefix
+    // * 3 - our block
+    let prev_block_index = 2;
+
+    let ciphertext_block_to_modify = ciphertext
+        .chunks_exact_mut(16)
+        .nth(prev_block_index)
+        .expect("ciphertext should be long enough");
+    // First ;
+    ciphertext_block_to_modify[0] ^= 0b10;
+    // =
+    ciphertext_block_to_modify[6] ^= 0b100;
+    // Second ;
+    ciphertext_block_to_modify[11] ^= 0b10;
+
+    assert!(decrypt_is_admin(&ciphertext));
+}
