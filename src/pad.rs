@@ -21,7 +21,7 @@ pub fn pkcs7_valid(text: &[u8]) -> bool {
     }
 
     if let Some(last_byte) = text.last().copied() {
-        if last_byte as usize > 16 {
+        if !(1..=16).contains(&last_byte) {
             return false;
         }
 

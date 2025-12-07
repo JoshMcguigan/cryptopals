@@ -100,7 +100,9 @@ pub fn cbc_decrypt_check_padding(
 
     let padding_valid = pkcs7_valid(&plaintext);
 
-    pkcs7_remove(&mut plaintext);
+    if padding_valid {
+        pkcs7_remove(&mut plaintext);
+    }
 
     (padding_valid, plaintext)
 }

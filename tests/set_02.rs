@@ -432,6 +432,9 @@ fn challenge_15() {
     assert!(!pkcs7_valid(&[
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 2
     ]));
+    assert!(!pkcs7_valid(&[
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 0
+    ]));
     assert!(pkcs7_valid(&[
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 1
     ]));
@@ -440,7 +443,7 @@ fn challenge_15() {
 /// Simplified version of challenge 16, where the attacker modifies
 /// the IV to change the plaintext in the first block.
 #[test]
-fn challenge_16_pre() {
+fn challenge_16_warmup() {
     let (encrypt_user_data, decrypt) = {
         let key = b"YELLOW SUBMARINE";
         // Using the same IV is exploitable, but we'll pretend like this function
