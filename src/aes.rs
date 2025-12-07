@@ -3,7 +3,7 @@ use aes::{
     cipher::{BlockDecrypt as _, BlockEncryptMut as _, Key, KeyInit as _},
 };
 
-use crate::pad::{pkcs7, pkcs7_remove};
+use crate::pad::{pkcs7, pkcs7_remove, pkcs7_valid};
 
 const AES_BLOCK_SIZE: u8 = 16;
 
@@ -74,6 +74,14 @@ pub fn cbc_encrypt(key: &Key<Aes128>, plaintext: &[u8], iv: &[u8]) -> Vec<u8> {
 ///
 /// Padding bytes are removed per PKCS#7.
 pub fn cbc_decrypt(key: &Key<Aes128>, ciphertext: &[u8], iv: &[u8]) -> Vec<u8> {
+    cbc_decrypt_check_padding(key, ciphertext, iv).1
+}
+
+pub fn cbc_decrypt_check_padding(
+    key: &Key<Aes128>,
+    ciphertext: &[u8],
+    iv: &[u8],
+) -> (bool, Vec<u8>) {
     let cipher = Aes128::new(key);
     let mut plaintext = vec![0; ciphertext.len()];
     let mut previous_cipher_block = iv;
@@ -90,9 +98,11 @@ pub fn cbc_decrypt(key: &Key<Aes128>, ciphertext: &[u8], iv: &[u8]) -> Vec<u8> {
         previous_cipher_block = cipher_block;
     }
 
+    let padding_valid = pkcs7_valid(&plaintext);
+
     pkcs7_remove(&mut plaintext);
 
-    plaintext
+    (padding_valid, plaintext)
 }
 
 #[cfg(test)]

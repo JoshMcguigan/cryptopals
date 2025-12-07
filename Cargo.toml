@@ -9,3 +9,4 @@ data-encoding = "2.9.0"
 
 [dev-dependencies]
 insta = "1.44.1"
+rand = "0.9"
