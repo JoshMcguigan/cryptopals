@@ -1,4 +1,7 @@
-use cryptopals::aes::{cbc_decrypt_check_padding, cbc_encrypt};
+use cryptopals::{
+    aes::{cbc_decrypt_check_padding, cbc_encrypt},
+    pad::pkcs7_remove,
+};
 
 use data_encoding::BASE64;
 use rand::{Rng, RngCore};
@@ -142,8 +145,73 @@ fn challenge_17() {
     let oracle = Oracle17::default();
     let ciphertext = oracle.encrypt();
 
-    assert!(
-        oracle.padding_is_valid(&ciphertext),
-        "padding should be valid before the ciphertext is modified"
-    );
+    // Decrypted, but not yet XOR'd text.
+    let mut decrypted_blocks = vec![];
+
+    // Skip 1 because the first block is the IV.
+    for ciphertext_block in ciphertext.chunks_exact(16).skip(1) {
+        let mut prev_ciphertext_block_to_try = [0u8; 16];
+        let mut decrypted_block = [0u8; 16];
+
+        for byte_index in (0..16).rev() {
+            let num_padding_bytes = 16 - byte_index;
+            for i in byte_index..16 {
+                prev_ciphertext_block_to_try[i] = decrypted_block[i] ^ num_padding_bytes as u8;
+            }
+
+            let mut valid_bytes = vec![];
+            for i in u8::MIN..=u8::MAX {
+                prev_ciphertext_block_to_try[byte_index] = i;
+
+                let ciphertext_to_try = {
+                    let mut v = vec![];
+                    v.extend_from_slice(&prev_ciphertext_block_to_try);
+                    v.extend_from_slice(ciphertext_block);
+                    v
+                };
+
+                if oracle.padding_is_valid(&ciphertext_to_try) {
+                    valid_bytes.push(i);
+                }
+            }
+
+            let c_prime_byte = {
+                if valid_bytes.len() == 1 {
+                    valid_bytes.pop().unwrap()
+                } else {
+                    assert_eq!(2, valid_bytes.len());
+
+                    let prev_byte_index = byte_index - 1;
+                    prev_ciphertext_block_to_try[prev_byte_index] =
+                        prev_ciphertext_block_to_try[prev_byte_index].wrapping_add(1);
+                    prev_ciphertext_block_to_try[byte_index] = valid_bytes[0];
+
+                    let ciphertext_to_try = {
+                        let mut v = vec![];
+                        v.extend_from_slice(&prev_ciphertext_block_to_try);
+                        v.extend_from_slice(ciphertext_block);
+                        v
+                    };
+
+                    if oracle.padding_is_valid(&ciphertext_to_try) {
+                        valid_bytes[0]
+                    } else {
+                        valid_bytes[1]
+                    }
+                }
+            };
+            decrypted_block[byte_index] = c_prime_byte ^ num_padding_bytes as u8;
+        }
+
+        decrypted_blocks.extend_from_slice(&decrypted_block);
+    }
+
+    let mut plaintext = ciphertext
+        .iter()
+        .zip(decrypted_blocks)
+        .map(|(a, b)| a ^ b)
+        .collect::<Vec<u8>>();
+    pkcs7_remove(&mut plaintext);
+
+    assert!(oracle.decryption_is_correct(&plaintext));
 }
