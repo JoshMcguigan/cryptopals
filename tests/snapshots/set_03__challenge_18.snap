@@ -1,0 +1,5 @@
+---
+source: tests/set_03.rs
+expression: "String::from_utf8_lossy(&plaintext)"
+---
+Yo, VIP Let's kick it Ice, Ice, baby Ice, Ice, baby

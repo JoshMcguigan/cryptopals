@@ -107,6 +107,25 @@ pub fn cbc_decrypt_check_padding(
     (padding_valid, plaintext)
 }
 
+pub fn ctr(key: &Key<Aes128>, text: &[u8], nonce: u64) -> Vec<u8> {
+    let mut output_text = Vec::with_capacity(text.len());
+
+    let mut cipher = Aes128::new(key);
+
+    for (block_count, block) in text.chunks(16).enumerate() {
+        let mut keystream = [0u8; 16];
+        keystream[0..8].copy_from_slice(&nonce.to_le_bytes());
+        keystream[8..16].copy_from_slice(&(block_count as u64).to_le_bytes());
+        cipher.encrypt_block_mut((&mut keystream).into());
+
+        for (i, byte) in block.iter().enumerate() {
+            output_text.push(byte ^ keystream[i]);
+        }
+    }
+
+    output_text
+}
+
 #[cfg(test)]
 mod tests {
     use super::{cbc_decrypt, cbc_encrypt, ecb_decrypt, ecb_encrypt};

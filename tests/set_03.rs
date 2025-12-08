@@ -1,9 +1,10 @@
 use cryptopals::{
-    aes::{cbc_decrypt_check_padding, cbc_encrypt},
+    aes::{cbc_decrypt_check_padding, cbc_encrypt, ctr},
     pad::pkcs7_remove,
 };
 
 use data_encoding::BASE64;
+use insta::assert_snapshot;
 use rand::{Rng, RngCore};
 
 struct Oracle17 {
@@ -214,4 +215,17 @@ fn challenge_17() {
     pkcs7_remove(&mut plaintext);
 
     assert!(oracle.decryption_is_correct(&plaintext));
+}
+
+#[test]
+fn challenge_18() {
+    let base64_ciphertext =
+        b"L77na/nrFsKvynd6HzOoG7GHTLXsTVu9qvY/2syLXzhPweyyMTJULu/6/kXX0KSvoOLSFQ==";
+    let ciphertext = BASE64
+        .decode(base64_ciphertext)
+        .expect("input should be valid base64");
+
+    let plaintext = ctr(b"YELLOW SUBMARINE".into(), &ciphertext, 0);
+
+    assert_snapshot!(String::from_utf8_lossy(&plaintext));
 }
