@@ -1,10 +1,12 @@
 use cryptopals::{
     aes::{cbc_decrypt_check_padding, cbc_encrypt, ctr},
+    analysis::plaintext_scorer_english_prose,
+    break_xor,
     pad::pkcs7_remove,
 };
 
 use data_encoding::BASE64;
-use insta::assert_snapshot;
+use insta::{assert_debug_snapshot, assert_snapshot};
 use rand::{Rng, RngCore};
 
 struct Oracle17 {
@@ -228,4 +230,45 @@ fn challenge_18() {
     let plaintext = ctr(b"YELLOW SUBMARINE".into(), &ciphertext, 0);
 
     assert_snapshot!(String::from_utf8_lossy(&plaintext));
+}
+
+#[test]
+fn challenge_19() {
+    let plaintext_base64 = include_str!("challenge-data/19.txt");
+    let plaintexts = plaintext_base64
+        .lines()
+        .map(|line| {
+            BASE64
+                .decode(line.as_bytes())
+                .expect("input should be valid base64")
+        })
+        .collect::<Vec<Vec<u8>>>();
+
+    let ciphertexts = plaintexts
+        .iter()
+        .map(|plaintext| {
+            // Re-using the same nonce! This is what allows
+            // us to break this encryption.
+            ctr(b"YELLOW SUBMARINE".into(), plaintext, 0)
+        })
+        .collect::<Vec<Vec<u8>>>();
+
+    // Combine all first blocks to break them as repeated key XOR.
+    let ciphertext_first_blocks = ciphertexts
+        .iter()
+        .flat_map(|c| Vec::from(&c[0..16]))
+        .collect::<Vec<u8>>();
+
+    let possible_plaintext_first_blocks =
+        break_xor(&ciphertext_first_blocks, 16, plaintext_scorer_english_prose).possible_plaintext;
+
+    assert_debug_snapshot!(
+        possible_plaintext_first_blocks
+            .chunks_exact(16)
+            .map(|plaintext| String::from_utf8_lossy(plaintext).into_owned())
+            .collect::<Vec<String>>()
+    );
+
+    // This could be repeated for remaining blocks, although you'd have to deal with the
+    // strings haven't different lengths.
 }
