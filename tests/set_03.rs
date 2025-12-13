@@ -272,3 +272,46 @@ fn challenge_19() {
     // This could be repeated for remaining blocks, although you'd have to deal with the
     // strings haven't different lengths.
 }
+
+/// It turns out I solved problem 19 in the way this problem suggests to be solved. Not
+/// sure what to do differently, so I'll do the same thing again.
+#[test]
+fn challenge_20() {
+    let plaintext_base64 = include_str!("challenge-data/20.txt");
+    let plaintexts = plaintext_base64
+        .lines()
+        .map(|line| {
+            BASE64
+                .decode(line.as_bytes())
+                .expect("input should be valid base64")
+        })
+        .collect::<Vec<Vec<u8>>>();
+
+    let ciphertexts = plaintexts
+        .iter()
+        .map(|plaintext| {
+            // Re-using the same nonce! This is what allows
+            // us to break this encryption.
+            ctr(b"YELLOW SUBMARINE".into(), plaintext, 0)
+        })
+        .collect::<Vec<Vec<u8>>>();
+
+    // Combine all first blocks to break them as repeated key XOR.
+    let ciphertext_first_blocks = ciphertexts
+        .iter()
+        .flat_map(|c| Vec::from(&c[0..16]))
+        .collect::<Vec<u8>>();
+
+    let possible_plaintext_first_blocks =
+        break_xor(&ciphertext_first_blocks, 16, plaintext_scorer_english_prose).possible_plaintext;
+
+    assert_debug_snapshot!(
+        possible_plaintext_first_blocks
+            .chunks_exact(16)
+            .map(|plaintext| String::from_utf8_lossy(plaintext).into_owned())
+            .collect::<Vec<String>>()
+    );
+
+    // This could be repeated for remaining blocks, although you'd have to deal with the
+    // strings haven't different lengths.
+}
