@@ -1,3 +1,5 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use cryptopals::{
     aes::{cbc_decrypt_check_padding, cbc_encrypt, ctr},
     analysis::plaintext_scorer_english_prose,
@@ -324,4 +326,35 @@ fn challenge_21() {
     assert_eq!(822569775, rand_source.random_u32());
     assert_eq!(2137449171, rand_source.random_u32());
     assert_eq!(2671936806, rand_source.random_u32());
+}
+
+#[test]
+fn challenge_22() {
+    /// Returns (seed, rand_value)
+    fn bad_rand() -> (u32, u32) {
+        let seed = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as u32;
+        (seed, Mt19937::new(seed).random_u32())
+    }
+
+    let (actual_seed, actual_rand_value) = bad_rand();
+
+    let time_to_start_guessing = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as u32;
+    for i in 0..100 {
+        let seed_to_guess = time_to_start_guessing.saturating_sub(i);
+        let rand_value = Mt19937::new(seed_to_guess).random_u32();
+
+        if rand_value == actual_rand_value {
+            // We've recovered the seed.
+            assert_eq!(actual_seed, seed_to_guess);
+            return;
+        }
+    }
+
+    panic!("failed to recover seed");
 }
