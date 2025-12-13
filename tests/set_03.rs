@@ -3,6 +3,7 @@ use cryptopals::{
     analysis::plaintext_scorer_english_prose,
     break_xor,
     pad::pkcs7_remove,
+    rand::mersenne_twister::Mt19937,
 };
 
 use data_encoding::BASE64;
@@ -314,4 +315,13 @@ fn challenge_20() {
 
     // This could be repeated for remaining blocks, although you'd have to deal with the
     // strings haven't different lengths.
+}
+
+#[test]
+fn challenge_21() {
+    let mut rand_source = Mt19937::new(1234);
+
+    assert_eq!(822569775, rand_source.random_u32());
+    assert_eq!(2137449171, rand_source.random_u32());
+    assert_eq!(2671936806, rand_source.random_u32());
 }

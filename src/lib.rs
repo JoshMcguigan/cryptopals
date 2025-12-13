@@ -3,6 +3,7 @@ use std::num::NonZero;
 pub mod aes;
 pub mod analysis;
 pub mod pad;
+pub mod rand;
 
 /// Performs repeating key XOR.
 ///
