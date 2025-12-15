@@ -358,3 +358,21 @@ fn challenge_22() {
 
     panic!("failed to recover seed");
 }
+
+#[test]
+fn challenge_23() {
+    let mut original_rand_source = Mt19937::new(1234);
+    let mut samples = [0; 624];
+    for sample in samples.iter_mut() {
+        *sample = original_rand_source.random_u32();
+    }
+
+    let mut cloned_random_source = Mt19937::from_samples(samples);
+
+    for _ in 0..1_000 {
+        assert_eq!(
+            original_rand_source.random_u32(),
+            cloned_random_source.random_u32()
+        );
+    }
+}

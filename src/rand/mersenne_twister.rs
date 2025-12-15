@@ -52,6 +52,19 @@ impl Mt19937 {
         s
     }
 
+    pub fn from_samples(samples: [u32; N as usize]) -> Self {
+        let mut state_array = [0; N as usize];
+
+        for (sample, state) in samples.iter().copied().zip(state_array.iter_mut()) {
+            *state = reverse(sample);
+        }
+
+        Self {
+            state_array,
+            state_index: N as usize,
+        }
+    }
+
     fn twist(&mut self) {
         let first_part = (N - M) as usize;
 
@@ -80,7 +93,8 @@ impl Mt19937 {
         let x = self.state_array[self.state_index];
         self.state_index += 1;
 
-        let mut y = x ^ (x >> U);
+        let mut y = x;
+        y = y ^ (y >> U);
         y = y ^ ((y << S) & B);
         y = y ^ ((y << T) & C);
 
@@ -88,9 +102,31 @@ impl Mt19937 {
     }
 }
 
+/// Implementation from <https://docs.rs/mersenne_twister/1.1.1/src/mersenne_twister/mt19937.rs.html#173-192>.
+fn reverse(mut x: u32) -> u32 {
+    // reverse "x ^=  x>>18;"
+    x ^= x >> 18;
+
+    // reverse "x ^= (x<<15) & 0xefc60000;"
+    x ^= (x << 15) & 0x2fc60000;
+    x ^= (x << 15) & 0xc0000000;
+
+    // reverse "x ^= (x<< 7) & 0x9d2c5680;"
+    x ^= (x << 7) & 0x00001680;
+    x ^= (x << 7) & 0x000c4000;
+    x ^= (x << 7) & 0x0d200000;
+    x ^= (x << 7) & 0x90000000;
+
+    // reverse "x ^=  x>>11;"
+    x ^= x >> 11;
+    x ^= x >> 22;
+
+    x
+}
+
 #[cfg(test)]
 mod tests {
-    use super::Mt19937;
+    use super::{Mt19937, reverse};
 
     #[test]
     fn matches_vectors() {
@@ -103,5 +139,13 @@ mod tests {
         for vector in vectors {
             assert_eq!(vector, rand_source.random_u32());
         }
+    }
+
+    #[test]
+    fn reverse_single_val() {
+        let mut rand_source = Mt19937::new(1131464071);
+        let rand_val = rand_source.random_u32();
+
+        assert_eq!(rand_source.state_array[0], reverse(rand_val));
     }
 }
