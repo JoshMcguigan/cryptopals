@@ -38,8 +38,9 @@ impl Mt19937 {
         state_array[0] = seed;
 
         for i in 1..(N as usize) {
-            state_array[i] =
-                F.wrapping_mul(state_array[i - 1] ^ (state_array[i - 1] >> 30)) + (i as u32);
+            state_array[i] = F
+                .wrapping_mul(state_array[i - 1] ^ (state_array[i - 1] >> 30))
+                .wrapping_add(i as u32);
         }
 
         let mut s = Self {

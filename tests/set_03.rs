@@ -376,3 +376,36 @@ fn challenge_23() {
         );
     }
 }
+
+#[test]
+fn challenge_24() {
+    let encrypt = |key: u16, plaintext: &mut Vec<u8>| {
+        let mut keystream = Mt19937::new(key as u32);
+        for bytes in plaintext.chunks_mut(4) {
+            let keys = keystream.random_u32().to_ne_bytes();
+            for (byte, key) in bytes.iter_mut().zip(keys.iter()) {
+                *byte ^= key;
+            }
+        }
+    };
+    let secret_key = 5;
+    let ciphertext = {
+        let mut text = Vec::from([b'A'; 14]);
+        encrypt(secret_key, &mut text);
+        text
+    };
+
+    // Now we recover the key, using knowledge of the plaintext. This is
+    // modeling a chosen plaintext attack.
+
+    for candidate_key in u16::MIN..=u16::MAX {
+        let mut text = Vec::from([b'A'; 14]);
+        encrypt(candidate_key, &mut text);
+        if text == ciphertext {
+            assert_eq!(secret_key, candidate_key);
+            return;
+        }
+    }
+
+    panic!("did not find key");
+}
