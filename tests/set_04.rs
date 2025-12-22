@@ -20,3 +20,26 @@ fn challenge_25() {
 
     assert_eq!(secret_plaintext, recovered_plaintext.as_slice());
 }
+
+#[test]
+fn challenge_26() {
+    let encrypt_decrypt = {
+        let key = b"YELLOW SUBMARINE";
+        let nonce = 5;
+
+        move |plaintext| aes::ctr(key.into(), plaintext, nonce)
+    };
+    let secret_plaintext = b";admin=0;";
+
+    let mut ciphertext = encrypt_decrypt(secret_plaintext);
+    // Convert ascii 0 to ascii 1
+    ciphertext[7] |= 0b1;
+
+    let modified_plaintext = encrypt_decrypt(&ciphertext);
+
+    assert!(
+        String::from_utf8(modified_plaintext)
+            .expect("must be valid ascii")
+            .contains("admin=1")
+    );
+}
